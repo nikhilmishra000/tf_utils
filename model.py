@@ -6,11 +6,11 @@ import tensorflow as tf
 from base import struct
 
 
-class Model(object):
+class Model(struct):
 
     def __init__(self, opts):
-        self.opts = opts
-        self.funcs = struct()
+        struct.__init__(self)
+        self['opts'] = opts
 
     @property
     def params(self):
@@ -38,7 +38,11 @@ class Model(object):
         return opts
 
     def make_function(self, name, inputs, outputs):
-        self.funcs[name] = struct(inputs=inputs, outputs=outputs)
+        def function(**values):
+            feed = {pl: values[name]
+                    for name, pl in inputs.items()}
+            return self.session.run(outputs, feed_dict=feed)
+        self[name] = function
 
     def make_train_op(self, loss, scope):
         """
@@ -65,4 +69,5 @@ class Model(object):
                 train_op = solver.apply_gradients(grads, global_step=step)
             else:
                 train_op = solver.minimize(loss, global_step=step)
+
             return step, train_op

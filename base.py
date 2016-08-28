@@ -13,14 +13,24 @@ def make_session(frac):
 
 
 def make_placeholders(variables):
-    """ Shortcut to make placeholdes:
-    Input: a dict{name: shape} (str: tuple)
+    """ Shortcut to make placeholders. Default dtype is tf.float32.
+    Input: a dict{name: shape} or {name: (shape, dtype_str)}
+           <shape> is a tuple of ints
+           <dtype_str> is a str like 'tf.float32', 'tf.int32', etc
     Usage:
          for var in make_placeholders(variables):
              exec(var)
     """
-    return ["{0} = tf.placeholder(tf.float32, {1})".format(name, shape)
-            for name, shape in variables.items()]
+    commands = []
+    for name, args in variables.items():
+        if len(args) == 2:
+            shape, dtype = args
+        else:
+            shape, dtype = args, 'tf.float32'
+        commands.append(
+            "{0} = tf.placeholder({2}, {1})".format(name, shape, dtype)
+        )
+    return commands
 
 
 def affine(X, dim_out, scope=None, tag='', reuse=None):
