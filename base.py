@@ -23,7 +23,7 @@ def make_placeholders(variables):
     """
     commands = []
     for name, args in variables.items():
-        if len(args) == 2:
+        if len(args) == 2 and isinstance(args[1], basestring):
             shape, dtype = args
         else:
             shape, dtype = args, 'tf.float32'
@@ -123,6 +123,16 @@ def channel_softmax(X):
     """
     X = tf.exp(X)
     return X / tf.reduce_sum(X, reduction_indices=[3], keep_dims=True)
+
+
+def norm(X, axis=0, keepdims=False, p=2):
+    if isinstance(axis, int):
+        axis = [axis]
+    assert isinstance(axis, list)
+    return tf.pow(
+        tf.reduce_sum(tf.pow(X, p), axis, keepdims),
+        1.0 / p
+    )
 
 
 def L1_loss(pred, target, weights=1):

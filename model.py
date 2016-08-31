@@ -41,7 +41,10 @@ class Model(struct):
         def function(**values):
             feed = {pl: values[name]
                     for name, pl in inputs.items()}
-            return self.session.run(outputs, feed_dict=feed)
+            result = self.session.run(outputs, feed_dict=feed)
+            if len(result) == 1:
+                result = result[0]
+            return result
         self[name] = function
 
     def make_train_op(self, loss, scope):
