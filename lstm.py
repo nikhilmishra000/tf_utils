@@ -1,7 +1,7 @@
 from __future__ import division
 import numpy as np
 import tensorflow as tf
-from base import conv, deconv
+from python_ops import conv, deconv
 
 
 class ConvLSTM(object):
