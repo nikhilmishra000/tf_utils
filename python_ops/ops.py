@@ -38,9 +38,18 @@ def conv(X, param, name, scope_name='conv'):
     _default_value(param, 'stride', (1, 1, 1, 1))
     _default_value(param, 'pad', 'SAME')
 
+    kw, kh, c_in, c_out = param['kernel']
+    if param.get('bias'):
+        c_in += 1
+        X = tf.concat(3, [
+            X, tf.ones(tf.concat(0, [tf.shape(X)[:3], [1]]))
+        ])
+
+    ker_shape = (kw, kh, c_in, c_out)
     kernel = scoped_variable('kernel_%s' % name, scope_name,
-                             shape=param['kernel'],
+                             shape=ker_shape,
                              initializer=tf.contrib.layers.xavier_initializer())
+
     conv = tf.nn.conv2d(X, kernel, param['stride'], padding=param['pad'],
                         name='conv_%s' % name)
     return conv
@@ -58,13 +67,19 @@ def deconv(X, param, name, scope_name='deconv'):
     _default_value(param, 'stride', (1, 1, 1, 1))
     _default_value(param, 'pad', 'SAME')
 
+    kw, kh, c_out, c_in = param['kernel']
+    if param.get('bias'):
+        c_in += 1
+        X = tf.concat(3, [
+            X, tf.ones(tf.concat(0, [tf.shape(X)[:3], [1]]))
+        ])
+
+    ker_shape = (kw, kh, c_out, c_in)
     kernel = scoped_variable('kernel_%s' % name, scope_name,
-                             shape=param['kernel'])
+                             shape=ker_shape)
 
     input_shape = tf.shape(X)
-
     wh_dims = input_shape[1:3] * param['stride'][1:3]
-
     if param['pad'] == 'VALID':
         wh_dims += param['kernel'][:2]
         wh_dims -= 1

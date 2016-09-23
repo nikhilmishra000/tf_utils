@@ -7,25 +7,97 @@ from base import struct
 
 
 class Model(struct):
+    """
+    A base class from which to derive different models.
+    Provides methods and attributes for commonly-done things.
+    Easy to save and restore a trained model.
+
+    Most of the work is done in the __init__ method,
+    which should look something like:
+
+    ```
+    def __init__(self, opts):
+      super(Model, self).__init__(opts)
+      self.session = tf.Session()
+
+      # make some placeholders
+      X, Y = ...
+
+      # build the graph
+      prediction = ...
+      loss = ...
+
+      global_step, learning_rate, train_op = self.make_train_op(loss)
+
+      self.functions = [
+        ('fit', {'X': X, 'Y': Y},
+         [train_op, loss]),
+        ('score', {'X': X, 'Y': Y}, [loss, prediction]),
+        ('predict', {'X': X}, [prediction])
+      ]
+
+      self.finalize()
+    ```
+
+    Then, to train and query the model:
+
+    ```
+    for _ in range(num_iters):
+      # get a batch of training data
+      x, y = ...
+      _, training_loss = self.fit(X=x, Y=y)
+
+    # validation
+    x_val, y_val = ...
+    validation_loss, _ = self.score(X=x_val, Y=y_val)
+
+    # make predictions
+    x_test = ...
+    predictions = self.predict(X=x_test)
+    """
 
     def __init__(self, opts):
+        """
+        :param opts: a dict that contains all information needed
+                     to build the graph (layer sizes, solver params, etc)
+        """
         struct.__init__(self)
         self['opts'] = opts
 
     @property
     def params(self):
+        """ The model parameters, as a list(tf.Variable) """
         return self.session.graph.get_collection(
             tf.GraphKeys.TRAINABLE_VARIABLES)
 
     @property
     def param_shapes(self):
-        return [tuple(map(int, var.get_shape())) for var in self.params]
+        """
+        A list(tuple) of the shapes of model parameters.
+        """
+        return [var.get_shape().as_list() for var in self.params]
+
+    @property
+    def param_names(self):
+        """
+        A list(str) of the names of model parameters.
+        """
+        return [var.name for var in self.params]
 
     @property
     def num_params(self):
+        """
+        The total number of parameters in this model.
+        """
         return sum([np.prod(shape) for shape in self.param_shapes])
 
     def save(self, path, **kwargs):
+        """
+        Take a snapshot of this model, saving the session with tf.train.Saver(),
+        and pickle-ing the object's attributes, along with anything in kwargs.
+
+        @param path: str, should not have a filename extension
+        """
         for key, val in kwargs.items():
             self.opts[key] = val
         self.saver.save(self.session, '{0}.ckpt'.format(path))
@@ -34,6 +106,17 @@ class Model(struct):
 
     @classmethod
     def restore(cls, path):
+        """
+        Restore a model by:
+        (1) Un-pickle-ing a dict from `%s.opts % path`
+        (2) Recreating the Model object from that dict.
+        (3) Restoring its session.
+
+        Should be called as a classmethod of the derived class,
+        not this base class.
+
+        @param path: str, should not have a filename extension
+        """
         opts = pickle.load(open('{0}.opts'.format(path), 'rb'))
         self = cls(opts)
         self.saver.restore(self.session, '{0}.ckpt'.format(path))
@@ -41,6 +124,13 @@ class Model(struct):
         return self
 
     def finalize(self):
+        """
+        If `self.functions` is a list of tuples (str, dict, list),
+        then this method will create instancemethods using `Model.make_function()`.
+
+        Also gives this model a tf.train.Saver()
+        and initializes all variables.
+        """
         for name, inputs, outputs in self.functions:
             self.make_function(name, inputs, outputs)
 
@@ -49,13 +139,13 @@ class Model(struct):
 
     def make_function(self, name, inputs, outputs):
         """
-        Create an instancemethod interface to tf.Session.run().
+        Create an instancemethod-like interface to tf.Session.run().
 
         Usage:
-        >>> self.make_function('func_name',
-                               {'arg1': arg1_pl, 'arg2': arg2_pl},
+        >> > self.make_function('func_name',
+                               {'arg1': arg1_placeholder, 'arg2': arg2_placeholder},
                                [res1_tensor, res2_tensor])
-        >>> res1_val, res2_val = self.func_name(arg1=arg1_val, arg2=arg2_val)
+        >> > res1_val, res2_val = self.func_name(arg1=arg1_val, arg2=arg2_val)
 
         Note that when calling the function, you must pass inputs with kwargs.
         """
@@ -72,7 +162,7 @@ class Model(struct):
         out_str = ', '.join(o.name for o in outputs)
 
         function.__doc__ = """
-        (%s) = %s(%s)
+        ( % s) = %s(%s)
         """ % (out_str, name, in_str)
 
         self[name] = function
@@ -82,16 +172,18 @@ class Model(struct):
         Make a training op that minimizes the given loss.
         Returns the iteration number, learning rate, and train_op.
 
+        All parameters should be in the dict that got passed to __init__
+
         Required:
-        opts.solver_type: {"RMSProp", "Adam"}
-        opts.alpha: learning rate
-        opts.beta1, opts.beta2: parameters, (momentum / gamma for RMSP)
+        solver_type: {"RMSProp", "Adam"}
+        alpha: learning rate
+        beta1, beta2: parameters, (momentum / gamma for RMSP)
 
         Optional:
-        opts.epsilon: constant for numerical stability(default 1e-6)
-        opts.lr_decay, opts.lr_step: learning rate multiplies by `lr_decay` every `lr_step` iterations.
-        opts.min_alpha: learning rate stops decaying once it gets to `min_alpha`
-        opts.grad_clip: clips gradients to be within[-grad_clip, +grad_clip]
+        epsilon: constant for numerical stability(default 1e-6)
+        lr_decay, lr_step: learning rate multiplies by `lr_decay` every `lr_step` iterations.
+        min_alpha: learning rate stops decaying once it gets to `min_alpha`
+        grad_clip: clips gradients to be within[-grad_clip, +grad_clip]
         """
         opts = self.opts
 
