@@ -1,11 +1,9 @@
 from __future__ import division
-import cPickle as pickle
-import os.path as osp
 import numpy as np
 import tensorflow as tf
 
-from ..base import scoped_variable, \
-    _default_value, _validate_axes
+from ..base import \
+    scoped_variable, _validate_axes
 
 
 def affine(X, dim_out, name='', scope_name='affine'):
@@ -26,77 +24,6 @@ def affine(X, dim_out, name='', scope_name='affine'):
     return tf.nn.xw_plus_b(X, W, b, 'affine_%s' % name)
 
 
-def conv(X, param, name, scope_name='conv'):
-    """ Convolution:
-        X has shape [batch, width, height, in_channels],
-        params['kernel'] has shape [kernel_w, kernel_h, in_channels, out_channels]
-        params['stride'] is (1, stride_w, stride_h, 1) and defaults to (1,1,1,1)
-        params['pad'] is either "SAME" or "VALID" (defaults to the SAME)
-    """
-    assert X.get_shape().ndims == 4
-
-    _default_value(param, 'stride', (1, 1, 1, 1))
-    _default_value(param, 'pad', 'SAME')
-
-    kw, kh, c_in, c_out = param['kernel']
-    if param.get('bias'):
-        c_in += 1
-        X = tf.concat(3, [
-            X, tf.ones(tf.concat(0, [tf.shape(X)[:3], [1]]))
-        ])
-
-    ker_shape = (kw, kh, c_in, c_out)
-    kernel = scoped_variable('kernel_%s' % name, scope_name,
-                             shape=ker_shape,
-                             initializer=tf.contrib.layers.xavier_initializer())
-
-    conv = tf.nn.conv2d(X, kernel, param['stride'], padding=param['pad'],
-                        name='conv_%s' % name)
-    return conv
-
-
-def deconv(X, param, name, scope_name='deconv'):
-    """ Deconvolution:
-        X has shape [batch, width, height, in_channels]
-        param['kernel'] is a tuple(kernel_w, kernel_h, out_channels, in_channels)
-        params['stride'] is a tuple(1, stride_w, stride_h, 1), defaults to (1,1,1,1)
-        params['pad'] is either "SAME" or "VALID" (defaults to SAME)
-    """
-    assert X.get_shape().ndims == 4
-
-    _default_value(param, 'stride', (1, 1, 1, 1))
-    _default_value(param, 'pad', 'SAME')
-
-    kw, kh, c_out, c_in = param['kernel']
-    if param.get('bias'):
-        c_in += 1
-        X = tf.concat(3, [
-            X, tf.ones(tf.concat(0, [tf.shape(X)[:3], [1]]))
-        ])
-
-    ker_shape = (kw, kh, c_out, c_in)
-    kernel = scoped_variable('kernel_%s' % name, scope_name,
-                             shape=ker_shape)
-
-    input_shape = tf.shape(X)
-    wh_dims = input_shape[1:3] * param['stride'][1:3]
-    if param['pad'] == 'VALID':
-        wh_dims += param['kernel'][:2]
-        wh_dims -= 1
-
-    output_shape = tf.concat(0, [
-        input_shape[:1],
-        wh_dims,
-        param['kernel'][2:3]
-    ])
-
-    deconv = tf.nn.conv2d_transpose(X, kernel,
-                                    output_shape, param['stride'],
-                                    name='deconv_%s' % name,
-                                    padding=param['pad'])
-    return deconv
-
-
 def make_stack(func):
     def generic_stack(X, params, nonlin, name,
                       raw_output=True,
@@ -110,40 +37,14 @@ def make_stack(func):
         return X
     return generic_stack
 
-fc_stack = make_stack(affine)
-conv_stack = make_stack(conv)
-deconv_stack = make_stack(deconv)
 
-
-def spatial_softmax(X):
-    """ Spatial softmax:
-        X has shape [batch, width, height, channels],
-        each channel defines a spatial distribution,
-        taking expectation gives pairs (x,y) of feature points.
-        Output has shape [channels, 2].
-    """
-    _, w, h, _ = X.get_shape()
-    x_map, y_map = tf.linspace(0., 1., w), tf.linspace(0., 1., h)
-    x_map, y_map = tf.reshape(x_map, (1, w.value, 1)
-                              ), tf.reshape(y_map, (1, h.value, 1))
-
-    X = tf.exp(X)
-    fx, fy = tf.reduce_sum(X, [1]), tf.reduce_sum(X, [2])
-    fx /= tf.reduce_sum(fx, [1], keep_dims=True)
-    fy /= tf.reduce_sum(fy, [1], keep_dims=True)
-    fx = tf.reduce_sum(fx * x_map, [1])
-    fy = tf.reduce_sum(fy * y_map, [1])
-
-    return tf.concat(1, [fx, fy])
-
-
-def norm(X, axis=0, keep_dims=False, p=2):
+def norm(X, axis=None, keep_dims=False, p=2):
     """
     Compute the norm of a tensor across the given axes.
     Like np.linalg.norm.
 
     :param X: a Tensor of arbitrary dimensions
-    :param axis: an int or list(int) of axes <= ndim(X)
+    :param axis: an int, list(int), or None
     :param keep_dims: bool
     :param p: float > 0
     """
@@ -160,10 +61,3 @@ def normalize(X, axis):
     """
     axis = _validate_axes(axis)
     return X / tf.reduce_sum(X, axis, keep_dims=True)
-
-
-def softmax(X, axis):
-    """
-    Compute a softmax across arbitrary dimensions.
-    """
-    return normalize(tf.exp(X), axis)

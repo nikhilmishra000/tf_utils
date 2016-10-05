@@ -167,7 +167,7 @@ class Model(struct):
 
         self[name] = function
 
-    def make_train_op(self, loss):
+    def make_train_op(self, loss, var_list=None):
         """
         Make a training op that minimizes the given loss.
         Returns the iteration number, learning rate, and train_op.
@@ -180,6 +180,7 @@ class Model(struct):
         beta1, beta2: parameters, (momentum / gamma for RMSP)
 
         Optional:
+        var_list: will be passed to Optimizer.minimize
         epsilon: constant for numerical stability(default 1e-6)
         lr_decay, lr_step: learning rate multiplies by `lr_decay` every `lr_step` iterations.
         min_alpha: learning rate stops decaying once it gets to `min_alpha`
@@ -214,6 +215,6 @@ class Model(struct):
                      for grad, var in grads]
             train_op = solver.apply_gradients(grads, global_step=step)
         else:
-            train_op = solver.minimize(loss, global_step=step)
+            train_op = solver.minimize(loss, step, var_list)
 
         return step, alpha, train_op

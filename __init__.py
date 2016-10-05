@@ -3,7 +3,7 @@ from base import struct, \
     scoped_variable
 
 from python_ops import affine, conv, deconv, \
-    norm, normalize, softmax, spatial_softmax, \
+    norm, normalize, spatial_softmax, \
     make_stack, fc_stack, conv_stack, deconv_stack
 
 from lstm import ConvLSTM, DeconvLSTM
