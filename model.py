@@ -1,5 +1,5 @@
 from __future__ import division
-import cPickle as pickle
+import dill as pickle
 import numpy as np
 import tensorflow as tf
 
