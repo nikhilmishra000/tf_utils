@@ -218,3 +218,9 @@ class Model(struct):
             train_op = solver.minimize(loss, step, var_list)
 
         return step, alpha, train_op
+
+    def __repr__(self):
+        return object.__repr__(self)
+
+    def __str__(self):
+        return object.__str__(self)

@@ -38,7 +38,7 @@ def make_stack(func):
     return generic_stack
 
 
-def norm(X, axis=None, keep_dims=False, p=2):
+def norm(X, axis=None, keep_dims=False, p=2, root=True):
     """
     Compute the norm of a tensor across the given axes.
     Like np.linalg.norm.
@@ -49,10 +49,11 @@ def norm(X, axis=None, keep_dims=False, p=2):
     :param p: float > 0
     """
     axis = _validate_axes(axis)
-    return tf.pow(
-        tf.reduce_sum(tf.pow(X, p), axis, keep_dims),
-        1.0 / p
-    )
+    Y = tf.reduce_sum(tf.pow(X, p), axis, keep_dims)
+    if not root:
+        return Y
+    else:
+        return tf.pow(Y, 1.0 / p)
 
 
 def normalize(X, axis):
