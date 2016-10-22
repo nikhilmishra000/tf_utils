@@ -123,19 +123,24 @@ class Model(struct):
         print 'loaded model from {0}'.format(path)
         return self
 
-    def finalize(self):
+    def finalize(self, init_list=True):
         """
         If `self.functions` is a list of tuples (str, dict, list),
         then this method will create instancemethods using `Model.make_function()`.
-
         Also gives this model a tf.train.Saver()
         and initializes all variables.
+
+        If `init_list` is `True` (default), initializes all variables.
+        Otherwise, it should be a list of variables.
         """
         for name, inputs, outputs in self.functions:
             self.make_function(name, inputs, outputs)
 
         self.saver = tf.train.Saver()
-        self.session.run(tf.initialize_all_variables())
+        if init_list is True:
+            self.session.run(tf.initialize_all_variables())
+        elif isinstance(init_list, list):
+            self.session.run(tf.initialize_variables(init_list))
 
     def make_function(self, name, inputs, outputs):
         """
