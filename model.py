@@ -136,7 +136,8 @@ class Model(struct):
         for name, inputs, outputs in self.functions:
             self.make_function(name, inputs, outputs)
 
-        self.saver = tf.train.Saver()
+        if self.params:
+            self.saver = tf.train.Saver()
         if init_list is True:
             self.session.run(tf.initialize_all_variables())
         elif isinstance(init_list, list):
