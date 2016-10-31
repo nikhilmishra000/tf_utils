@@ -46,6 +46,7 @@ def conv(X, param, name, scope_name='conv'):
 
     _default_value(param, 'stride', (1, 1, 1, 1))
     _default_value(param, 'pad', 'SAME')
+    _default_value(param, 'rate', 1)
 
     kw, kh, c_out = param['kernel']
     c_in = X.get_shape()[3].value
@@ -67,8 +68,27 @@ def conv(X, param, name, scope_name='conv'):
                              shape=ker_shape,
                              initializer=tf.contrib.layers.xavier_initializer())
 
-    conv = tf.nn.conv2d(X, kernel, param['stride'], padding=pad_type,
-                        name='conv_%s' % name)
+    if len(param['stride']) == 2:
+        sw, sh = param['stride']
+        param['stride'] = (1, sw, sh, 1)
+
+    if param['rate'] == 1:
+        conv = tf.nn.conv2d(
+            X, kernel, param['stride'],
+            padding=pad_type, name='conv_%s' % name
+        )
+
+    else:
+        assert param['rate'] > 1, \
+            "Rate must be >= 1."
+        assert param['stride'] == (1, 1, 1, 1), \
+            "Cannot mix strides and rates."
+
+        conv = tf.nn.atrous_conv2d(
+            X, kernel, param['rate'], pad_type,
+            name='atrous_conv_%s' % name
+        )
+
     return conv
 
 
@@ -95,7 +115,7 @@ def deconv(X, param, name, scope_name='deconv'):
         if len(ker_shape) == 3:
             kw, kh, c_out = param['kernel']
         else:
-            kw, kh, c_in_, c_out = param['kernel']
+            kw, kh, c_out, c_in_ = param['kernel']
             assert c_in_ == c_in, \
                 "Inferred and given numbers of input_channels do not agree."
 
@@ -110,7 +130,7 @@ def deconv(X, param, name, scope_name='deconv'):
         c_in += 1
         X = tf.concat(3, [
             X, tf.ones(tf.concat(0, [tf.shape(X)[:3], [1]])),
-        ], name='%s_pad1' % name,
+        ], name='%s_pad4bias' % name,
         )
 
     ker_shape = (kw, kh, c_out, c_in)

@@ -3,8 +3,8 @@ from base import struct, \
     scoped_variable, make_scoped_cell
 
 from python_ops import \
-    affine, conv, deconv, \
-    gated_conv, \
+    linear, affine, \
+    conv, deconv, gated_conv, \
     norm, normalize, spatial_softmax, \
     make_stack, fc_stack, conv_stack, deconv_stack
 

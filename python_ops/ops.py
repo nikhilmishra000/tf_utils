@@ -24,6 +24,21 @@ def affine(X, dim_out, name='', scope_name='affine', dtype=tf.float32):
     return tf.nn.xw_plus_b(X, W, b, 'affine_%s' % name)
 
 
+def linear(X, dim_out, name='', scope_name='linear'):
+    """ Linear: X*W
+        X has shape [batch, dim_in]
+        Then W, b will be [dim_in, dim_out], [1, dim_out]
+    """
+    assert X.get_shape().ndims == 2
+    dim_in = X.get_shape()[1]
+    W = scoped_variable('w_%s' % name,
+                        scope_name,
+                        shape=(dim_in, dim_out), dtype=tf.float32,
+                        initializer=tf.contrib.layers.xavier_initializer())
+
+    return tf.matmul(X, W, name='linear_%s' % name)
+
+
 def make_stack(func):
     def generic_stack(X, params, nonlin, name,
                       raw_output=True,
