@@ -11,11 +11,16 @@ def make_session(frac):
     ))
 
 
-def make_placeholders(variables):
-    """ Shortcut to make placeholders. Default dtype is tf.float32.
+def make_placeholders(variables, dtype='tf.float32'):
+    """
     Input: a dict{name: shape} or {name: (shape, dtype_str)}
            <shape> is a tuple of ints
            <dtype_str> is a str like 'tf.float32', 'tf.int32', etc
+
+    If `dtype_str` is not given for a placeholder,
+    it will use the one passed into this function,
+    which is tf.float32 by default.
+
     Usage:
          variables = {
            'X_pl': (4, 5),
@@ -29,7 +34,7 @@ def make_placeholders(variables):
         if len(args) == 2 and isinstance(args[1], basestring):
             shape, dtype = args
         else:
-            shape, dtype = args, 'tf.float32'
+            shape = args
         commands.append(
             "{0} = tf.placeholder({2}, {1}, name='{0}')".format(
                 name, shape, dtype
@@ -51,7 +56,7 @@ def scoped_variable(var_name, scope_name, **kwargs):
             return tf.get_variable(var_name, **kwargs)
     except ValueError:
         with tf.variable_scope(scope_name, reuse=True) as scope:
-            return tf.get_variable(var_name)
+            return tf.get_variable(var_name, **kwargs)
 
 
 class struct(dict):

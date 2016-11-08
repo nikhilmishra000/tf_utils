@@ -6,7 +6,7 @@ from ..base import \
     scoped_variable, _validate_axes
 
 
-def affine(X, dim_out, name='', scope_name='affine'):
+def affine(X, dim_out, name='', scope_name='affine', dtype=tf.float32):
     """ Affine: X*W + b
         X has shape [batch, dim_in]
         Then W, b will be [dim_in, dim_out], [1, dim_out]
@@ -15,11 +15,11 @@ def affine(X, dim_out, name='', scope_name='affine'):
     dim_in = X.get_shape()[1]
     W = scoped_variable('w_%s' % name,
                         scope_name,
-                        shape=(dim_in, dim_out), dtype=tf.float32,
+                        shape=(dim_in, dim_out), dtype=dtype,
                         initializer=tf.contrib.layers.xavier_initializer())
     b = scoped_variable('b_%s' % name,
                         scope_name,
-                        shape=(dim_out,), dtype=tf.float32)
+                        shape=(dim_out,), dtype=dtype)
 
     return tf.nn.xw_plus_b(X, W, b, 'affine_%s' % name)
 
