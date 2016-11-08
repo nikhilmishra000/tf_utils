@@ -177,6 +177,51 @@ def gated_conv(X, param, name, scope_name='gated_conv'):
     return tf.tanh(Xf) * tf.sigmoid(Xg)
 
 
+def causal_conv(X, param, name, scope):
+    """
+    Causal/atrous convolution like WaveNet.
+
+    `X` has shape `[B, T, 1, C]`.
+    `param['kernel']` is a `tuple(k, 1, channels_out)`.
+    `param['rate']` is an int.
+
+    Example:
+    ```
+    X_pl = tf.placeholder(tf.float32, (B, T, 1, K))
+    X = tfu.casual_init(X_pl)
+    for i, param in enumerate(params):
+        X = tfu.casual_conv(X, param, i, 'casual_conv')
+    ```
+    """
+    assert X.get_shape().ndims == 4
+
+    b, t, l, c_in = X.get_shape().as_list()
+    k, _, c_out = param['kernel']
+    rate = param.get('rate', 1)
+    out_shape = (b, t, l, c_out)
+
+    XX = tf.pad(X, [
+        (0, 0), (k + (rate - 1) * (k - 1) - 1, 0),
+        (0, 0), (0, 0)
+    ])
+
+    param['pad'] = 'VALID'
+    XX = conv(XX, param, name, scope)
+    XX.set_shape(out_shape)
+
+    return XX
+
+
+def causal_init(X):
+    """
+    Do some padding/shifting to `X` so that causal stuff aligns nicely.
+    Should call at begining of stack, before first call to `casual_conv()`.
+    See `tfu.causal_conv()` for usage.
+    """
+    XX = tf.pad(X[:, :-1], [(0, 0), (1, 0), (0, 0), (0, 0)])
+    return XX
+
+
 def spatial_softmax(X):
     """ Spatial softmax:
         X has shape [batch, width, height, channels],

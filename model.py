@@ -108,7 +108,7 @@ class Model(struct):
     def restore(cls, path):
         """
         Restore a model by:
-        (1) Un-pickle-ing a dict from `%s.opts % path`
+        (1) Un-pickle-ing a dict from `"%s.opts" % path`
         (2) Recreating the Model object from that dict.
         (3) Restoring its session.
 

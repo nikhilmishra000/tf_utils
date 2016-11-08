@@ -60,7 +60,20 @@ def scoped_variable(var_name, scope_name, **kwargs):
 
 
 def make_scoped_cell(CellType):
+    """
+    Take a cell from `tf.nn.rnn_cell`,
+    and make a version of it that sets `reuse` in its scope as needed.
 
+    For example:
+    ```
+    from tf.nn.rnn_cell import BasicLSTMCell
+
+    ScopedLSTMCell = tfu.make_scoped_cell(BasicLSTMCell)
+    ```
+
+    Now, `ScopedLSTMCell` can be used in place of `BasicLSTMCell`,
+    and it should take care of reusing correctly.
+    """
     class ScopedCell(CellType):
 
         def __init__(self, scope_name, *args, **kwargs):

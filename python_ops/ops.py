@@ -65,10 +65,10 @@ def norm(X, axis=None, keep_dims=False, p=2, root=True):
     """
     axis = _validate_axes(axis)
     Y = tf.reduce_sum(tf.pow(X, p), axis, keep_dims)
-    if not root:
-        return Y
-    else:
+    if root:
         return tf.pow(Y, 1.0 / p)
+    else:
+        return Y
 
 
 def normalize(X, axis):
