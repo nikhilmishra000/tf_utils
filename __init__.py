@@ -1,6 +1,6 @@
 from base import struct, \
     make_session, make_placeholders, \
-    scoped_variable
+    scoped_variable, make_scoped_cell
 
 from python_ops import \
     affine, conv, deconv, \
