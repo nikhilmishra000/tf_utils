@@ -3,7 +3,7 @@ import dill as pickle
 import numpy as np
 import tensorflow as tf
 
-from base import struct
+from base import struct, structify
 
 
 class Model(struct):
@@ -150,24 +150,31 @@ class Model(struct):
         Create an instancemethod-like interface to tf.Session.run().
 
         Usage:
-        >> > self.make_function('func_name',
+        >>> self.make_function('func_name',
                                {'arg1': arg1_placeholder, 'arg2': arg2_placeholder},
                                [res1_tensor, res2_tensor])
-        >> > res1_val, res2_val = self.func_name(arg1=arg1_val, arg2=arg2_val)
+        >>> res1_val, res2_val = self.func_name(arg1=arg1_val, arg2=arg2_val)
 
         Note that when calling the function, you must pass inputs with kwargs.
+        Anything that can be evaluated by `session.run()` can be passed as `outputs`.
         """
 
         def function(**values):
             feed = {pl: values[name]
                     for name, pl in inputs.items()}
             result = self.session.run(outputs, feed_dict=feed)
+            result = structify(result)
             if len(result) == 1:
                 result = result[0]
             return result
 
         in_str = ', '.join(inputs)
-        out_str = ', '.join(o.name for o in outputs)
+        if isinstance(outputs, list):
+            out_str = ', '.join(o.name for o in outputs)
+        elif isinstance(outputs, dict):
+            out_str = ', '.join(outputs)
+        else:
+            assert False, type(outputs)
 
         function.__doc__ = """
         ( % s) = %s(%s)

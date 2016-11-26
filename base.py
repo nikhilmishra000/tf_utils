@@ -99,6 +99,16 @@ class struct(dict):
         self.__dict__ = self
 
 
+def structify(obj):
+    if isinstance(obj, dict):
+        obj = struct(**{
+            key: structify(val) for key, val in obj.items()
+        })
+    elif isinstance(obj, list):
+        obj = [structify(val) for val in obj]
+    return obj
+
+
 def _default_value(params_dict, key, value):
     if key not in params_dict:
         params_dict[key] = value
