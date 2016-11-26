@@ -51,12 +51,6 @@ def conv(X, param, name, scope_name='conv'):
     kw, kh, c_out = param['kernel']
     c_in = X.get_shape()[3].value
 
-    if param.get('bias'):
-        c_in += 1
-        X = tf.concat(3, [
-            X, tf.ones(tf.concat(0, [tf.shape(X)[:3], [1]]))
-        ])
-
     ker_shape = (kw, kh, c_in, c_out)
     pad_type = param['pad']
     if pad_type == 'CONSTANT':
@@ -64,9 +58,11 @@ def conv(X, param, name, scope_name='conv'):
         X = _constant_pad(X, ker_shape)
         pad_type = 'VALID'
 
-    kernel = scoped_variable('kernel_%s' % name, scope_name,
-                             shape=ker_shape,
-                             initializer=tf.contrib.layers.xavier_initializer())
+    kernel = scoped_variable(
+        'kernel_%s' % name, scope_name,
+        shape=ker_shape,
+        initializer=tf.contrib.layers.xavier_initializer_conv2d()
+    )
 
     if len(param['stride']) == 2:
         sw, sh = param['stride']
@@ -87,6 +83,14 @@ def conv(X, param, name, scope_name='conv'):
         conv = tf.nn.atrous_conv2d(
             X, kernel, param['rate'], pad_type,
             name='atrous_conv_%s' % name
+        )
+
+    if param.get('bias'):
+        bias_shape = (1, 1, 1, c_out)
+        conv += scoped_variable(
+            'bias_%s' % name, scope_name,
+            shape=bias_shape,
+            initializer=tf.zeros_initializer,
         )
 
     return conv
@@ -126,16 +130,12 @@ def deconv(X, param, name, scope_name='deconv'):
             assert False, \
                 "Number of input_channels was not given and could not be inferred."
 
-    if param.get('bias'):
-        c_in += 1
-        X = tf.concat(3, [
-            X, tf.ones(tf.concat(0, [tf.shape(X)[:3], [1]])),
-        ], name='%s_pad4bias' % name,
-        )
-
     ker_shape = (kw, kh, c_out, c_in)
-    kernel = scoped_variable('kernel_%s' % name, scope_name,
-                             shape=ker_shape)
+    kernel = scoped_variable(
+        'kernel_%s' % name, scope_name,
+        shape=ker_shape,
+        initializer=tf.contrib.layers.xavier_initializer_conv2d()
+    )
 
     pad_type = param['pad']
     b, w, h, _ = X.get_shape().as_list()
@@ -162,19 +162,18 @@ def deconv(X, param, name, scope_name='deconv'):
                                     output_shape, param['stride'],
                                     name='deconv_%s' % name,
                                     padding=pad_type)
+
+    if param.get('bias'):
+        deconv += scoped_variable(
+            'bias_%s' % name, scope_name,
+            shape=(1, 1, 1, c_out),
+            initializer=tf.zeros_initializer,
+        )
+
     if w and h:
         deconv.set_shape([b, w, h, c_out])
 
     return deconv
-
-
-def gated_conv(X, param, name, scope_name='gated_conv'):
-    """
-    Returns tanh(conv(X, Wf)) * sigmoid(conv(X, Wg))
-    """
-    Xf = conv(X, param, '%s_f' % name, scope_name)
-    Xg = conv(X, param, '%s_g' % name, scope_name)
-    return tf.tanh(Xf) * tf.sigmoid(Xg)
 
 
 def causal_conv(X, param, name, scope):

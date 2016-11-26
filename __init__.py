@@ -4,7 +4,8 @@ from base import struct, \
 
 from python_ops import \
     linear, affine, \
-    conv, deconv, gated_conv, \
+    ravel, batch_norm, \
+    conv, deconv, \
     causal_init, causal_conv, \
     norm, normalize, spatial_softmax, \
     make_stack, fc_stack, conv_stack, deconv_stack

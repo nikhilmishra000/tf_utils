@@ -105,7 +105,7 @@ class Model(struct):
         print 'saved model to {0}'.format(path)
 
     @classmethod
-    def restore(cls, path):
+    def restore(cls, path, **kwargs):
         """
         Restore a model by:
         (1) Un-pickle-ing a dict from `"%s.opts" % path`
@@ -118,6 +118,8 @@ class Model(struct):
         @param path: str, should not have a filename extension
         """
         opts = pickle.load(open('{0}.opts'.format(path), 'rb'))
+        for key, val in kwargs.items():
+            opts[key] = val
         self = cls(opts)
         self.saver.restore(self.session, '{0}.ckpt'.format(path))
         print 'loaded model from {0}'.format(path)
@@ -187,10 +189,9 @@ class Model(struct):
 
         Optional:
         var_list: will be passed to Optimizer.minimize
-        epsilon: constant for numerical stability(default 1e-6)
+        epsilon: constant for numerical stability (default 1e-6)
         lr_decay, lr_step: learning rate multiplies by `lr_decay` every `lr_step` iterations.
         min_alpha: learning rate stops decaying once it gets to `min_alpha`
-        grad_clip: clips gradients to be within[-grad_clip, +grad_clip]
         """
         opts = self.opts
 
@@ -214,16 +215,10 @@ class Model(struct):
 
         solver = SolverType(alpha, opts["beta1"],
                             opts["beta2"], epsilon=epsilon)
-        if 'grad_clip' in opts:
-            gclip = opts['grad_clip']
-            grads = solver.compute_gradients(loss)
-            grads = [(tf.clip_by_value(grad, -gclip, +gclip), var)
-                     for grad, var in grads]
-            train_op = solver.apply_gradients(grads, global_step=step)
-        else:
-            train_op = solver.minimize(loss, step, var_list)
-
-        return step, alpha, train_op
+        train_op = solver.minimize(loss, step, var_list)
+        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+        ops = [train_op] + update_ops
+        return step, alpha, tf.group(*ops)
 
     def __repr__(self):
         return object.__repr__(self)
