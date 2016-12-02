@@ -119,10 +119,10 @@ def batch_norm(X, param, name, update=True):
             normed += param['beta']
 
         tf.add_to_collection(
-            tf.assign(mean, new_mean), tf.GraphKeys.UPDATE_OPS
+            tf.GraphKeys.UPDATE_OPS, tf.assign(mean, new_mean)
         )
         tf.add_to_collection(
-            tf.assign(std, new_std), tf.GraphKeys.UPDATE_OPS
+            tf.GraphKeys.UPDATE_OPS, tf.assign(std, new_std)
         )
 
     return normed

@@ -91,7 +91,7 @@ class Model(struct):
         """
         return sum([np.prod(shape) for shape in self.param_shapes])
 
-    def save(self, path, **kwargs):
+    def save(self, use_saver, path, **kwargs):
         """
         Take a snapshot of this model, saving the session with tf.train.Saver(),
         and pickle-ing the object's attributes, along with anything in kwargs.
@@ -132,7 +132,9 @@ class Model(struct):
         Also gives this model a tf.train.Saver()
         and initializes all variables.
 
-        If `init_list` is `True` (default), initializes all variables.
+        If `init_list` is `True` (default), initializes the set of variables
+        returned by `tf.report_uninitialized_variables()`.
+
         Otherwise, it should be a list of variables.
         """
         for name, inputs, outputs in self.functions:
@@ -140,8 +142,15 @@ class Model(struct):
 
         if self.params:
             self.saver = tf.train.Saver()
+
         if init_list is True:
-            self.session.run(tf.initialize_all_variables())
+            needs_init = set(
+                self.session.run(tf.report_uninitialized_variables())
+            )
+            init_list = [v for v in tf.global_variables()
+                         if v.name.partition(':')[0] in needs_init]
+            self.session.run(tf.variables_initializer(init_list))
+
         elif isinstance(init_list, list):
             self.session.run(tf.initialize_variables(init_list))
 
