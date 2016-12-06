@@ -59,7 +59,7 @@ def scoped_variable(var_name, scope_name, **kwargs):
             return tf.get_variable(var_name, **kwargs)
 
 
-def make_scoped_cell(CellType):
+def make_scoped_cell(CellType, **scope_kwargs):
     """
     Take a cell from `tf.nn.rnn_cell`,
     and make a version of it that sets `reuse` in its scope as needed.
@@ -82,10 +82,10 @@ def make_scoped_cell(CellType):
 
         def __call__(self, X, H):
             try:
-                with tf.variable_scope(self.name) as scope:
+                with tf.variable_scope(self.name, **scope_kwargs) as scope:
                     return super(ScopedCell, self).__call__(X, H)
             except ValueError:
-                with tf.variable_scope(self.name, reuse=True) as scope:
+                with tf.variable_scope(self.name, reuse=True, **scope_kwargs) as scope:
                     return super(ScopedCell, self).__call__(X, H)
 
     ScopedCell.__name__ = "Scoped%s" % CellType.__name__

@@ -5,8 +5,11 @@ import tensorflow as tf
 from ..base import \
     scoped_variable, _validate_axes
 
+xavier_init = tf.contrib.layers.xavier_initializer()
 
-def affine(X, dim_out, name='', scope_name='affine'):
+
+def affine(X, dim_out, name='', scope_name='affine',
+           initializer=xavier_init):
     """ Affine: X*W + b
         X has shape [batch, dim_in]
         Then W, b will be [dim_in, dim_out], [1, dim_out]
@@ -16,7 +19,7 @@ def affine(X, dim_out, name='', scope_name='affine'):
     W = scoped_variable(
         'w_%s' % name, scope_name,
         shape=(dim_in, dim_out), dtype=X.dtype,
-        initializer=tf.contrib.layers.xavier_initializer()
+        initializer=initializer
     )
     b = scoped_variable(
         'b_%s' % name, scope_name,
