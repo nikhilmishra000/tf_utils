@@ -178,18 +178,11 @@ def deconv(X, param, name, scope_name='deconv'):
 
 def causal_conv(X, param, name, scope):
     """
-    Causal/atrous convolution like WaveNet.
+    Dilated causal convolutions.
 
     `X` has shape `[B, T, 1, C]`.
     `param['kernel']` is a `tuple(k, 1, channels_out)`.
     `param['rate']` is an int.
-
-    Example:
-    ```
-    X_pl = tf.placeholder(tf.float32, (B, T, 1, K))
-    X = tfu.casual_init(X_pl)
-    for i, param in enumerate(params):
-        X = tfu.casual_conv(X, param, i, 'casual_conv')
     ```
     """
     assert X.get_shape().ndims == 4
@@ -208,16 +201,6 @@ def causal_conv(X, param, name, scope):
     XX = conv(XX, param, name, scope)
     XX.set_shape(out_shape)
 
-    return XX
-
-
-def causal_init(X):
-    """
-    Do some padding/shifting to `X` so that causal stuff aligns nicely.
-    Should call at begining of stack, before first call to `casual_conv()`.
-    See `tfu.causal_conv()` for usage.
-    """
-    XX = tf.pad(X[:, :-1], [(0, 0), (1, 0), (0, 0), (0, 0)])
     return XX
 
 

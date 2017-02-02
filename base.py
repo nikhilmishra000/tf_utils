@@ -4,8 +4,11 @@ import numpy as np
 import tensorflow as tf
 
 
-def make_session(frac):
+def make_session(frac=None):
     """ Create a tf.Session(), limiting fraction of gpu that is allocated. """
+    if frac is None:
+        return tf.Session()
+
     return tf.Session(config=tf.ConfigProto(
         gpu_options=tf.GPUOptions(per_process_gpu_memory_fraction=frac)
     ))
