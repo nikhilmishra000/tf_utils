@@ -20,14 +20,8 @@ class Function(object):
         Note that when calling the function, you must pass inputs with kwargs.
         Anything that can be evaluated by `session.run()` can be passed as `outputs`.
         """
-
-        in_str = ', '.join(inputs)
-        if isinstance(outputs, list):
-            out_str = ', '.join(o.name for o in outputs)
-        elif isinstance(outputs, dict):
-            out_str = ', '.join(outputs)
-        else:
-            assert False, type(outputs)
+        in_str = Function.generate_string(inputs)
+        out_str = Function.generate_string(outputs)
 
         self.__doc__ = """( % s) = %s(%s)""" % (out_str, name, in_str)
 
@@ -43,8 +37,6 @@ class Function(object):
                 for name, pl in self.inputs.items()}
         result = self.session.run(self.outputs, feed_dict=feed)
         result = structify(result)
-        if len(result) == 1:
-            result = result[0]
         return result
 
     def __str__(self):
@@ -52,6 +44,15 @@ class Function(object):
 
     def __repr__(self):
         return str(self)
+
+    @staticmethod
+    def generate_string(arg):
+        if isinstance(arg, tf.Tensor) or isinstance(arg, tf.Operation):
+            return arg.name
+        elif isinstance(arg, list):
+            return ','.join(Function.generate_string(a) for a in arg)
+        elif isinstance(arg, dict):
+            return Function.generate_string(arg.values())
 
 
 class Model(struct):
