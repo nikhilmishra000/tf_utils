@@ -6,6 +6,54 @@ import tensorflow as tf
 from base import struct, structify
 
 
+class Function(object):
+
+    def __init__(self, inputs, outputs, session=None, name='function'):
+        """
+        Create a function interface to tf.Session.run().
+
+        Usage:
+        >>> func = Function({'arg1': arg1_placeholder, 'arg2': arg2_placeholder},
+                            [res1_tensor, res2_tensor])
+        >>> res1_val, res2_val = func(arg1=arg1_val, arg2=arg2_val)
+
+        Note that when calling the function, you must pass inputs with kwargs.
+        Anything that can be evaluated by `session.run()` can be passed as `outputs`.
+        """
+
+        in_str = ', '.join(inputs)
+        if isinstance(outputs, list):
+            out_str = ', '.join(o.name for o in outputs)
+        elif isinstance(outputs, dict):
+            out_str = ', '.join(outputs)
+        else:
+            assert False, type(outputs)
+
+        self.__doc__ = """( % s) = %s(%s)""" % (out_str, name, in_str)
+
+        if session is None:
+            session = tf.get_default_session()
+        assert session is not None,  \
+            "No Session was given, and there is no default Session."
+        self.session = session
+        self.inputs, self.outputs = inputs, outputs
+
+    def __call__(self, **kwargs):
+        feed = {pl: kwargs[name]
+                for name, pl in self.inputs.items()}
+        result = self.session.run(self.outputs, feed_dict=feed)
+        result = structify(result)
+        if len(result) == 1:
+            result = result[0]
+        return result
+
+    def __str__(self):
+        return 'tf_utils.Function: ' + self.__doc__
+
+    def __repr__(self):
+        return str(self)
+
+
 class Model(struct):
     """
     A base class from which to derive different models.
@@ -56,6 +104,8 @@ class Model(struct):
     predictions = self.predict(X=x_test)
     """
 
+    scope_name = ''
+
     def __init__(self, opts):
         """
         :param opts: a dict that contains all information needed
@@ -67,8 +117,8 @@ class Model(struct):
     @property
     def params(self):
         """ The model parameters, as a list(tf.Variable) """
-        return self.session.graph.get_collection(
-            tf.GraphKeys.TRAINABLE_VARIABLES)
+        return [v for v in self.session.graph.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
+                if v.name.startswith(self.scope_name)]
 
     @property
     def param_shapes(self):
@@ -91,38 +141,47 @@ class Model(struct):
         """
         return sum([np.prod(shape) for shape in self.param_shapes])
 
-    def save(self, use_saver, path, **kwargs):
+    def save(self, path, **kwargs):
         """
-        Take a snapshot of this model, saving the session with tf.train.Saver(),
-        and pickle-ing the object's attributes, along with anything in kwargs.
+        Save this model, pickling its parameter values, opts struct, and kwargs.
+        @param path: str, where to save it
+        """
+        data = dict(**kwargs)
+        for tensor in self.params:
+            data[tensor.name] = tensor.eval(session=self.session)
+        data.update(self.opts)
 
-        @param path: str, should not have a filename extension
-        """
-        for key, val in kwargs.items():
-            self.opts[key] = val
-        self.saver.save(self.session, '{0}.ckpt'.format(path))
-        pickle.dump(self.opts, open('{0}.opts'.format(path), 'wb'))
-        print 'saved model to {0}'.format(path)
+        if 'session' in data:
+            data.pop('session')
+
+        pickle.dump(data, open(path, 'wb'))
+        print 'saved model to', path
 
     @classmethod
     def restore(cls, path, **kwargs):
         """
         Restore a model by:
-        (1) Un-pickle-ing a dict from `"%s.opts" % path`
+        (1) Un-pickle-ing a dict from path`
         (2) Recreating the Model object from that dict.
-        (3) Restoring its session.
+        (3) Restoring its parameter values.
 
-        Should be called as a classmethod of the derived class,
-        not this base class.
-
-        @param path: str, should not have a filename extension
+        @param path: str
+        @param kwargs: override saved values
         """
-        opts = pickle.load(open('{0}.opts'.format(path), 'rb'))
+        opts = structify(pickle.load(open(path, 'rb')))
         for key, val in kwargs.items():
             opts[key] = val
-        self = cls(opts)
-        self.saver.restore(self.session, '{0}.ckpt'.format(path))
-        print 'loaded model from {0}'.format(path)
+        self = cls(opts).load_from(opts)
+        print 'loaded %s params from: %s' % (type(self).__name__, path)
+        return self
+
+    def load_from(self, path_or_dict):
+        if isinstance(path_or_dict, basestring):
+            opts = pickle.load(open(path_or_dict, 'rb'))
+        else:
+            opts = path_or_dict
+        for v in self.params:
+            self.session.run(v.assign(opts.pop(v.name)))
         return self
 
     def finalize(self, init_list=True):
@@ -140,9 +199,6 @@ class Model(struct):
         for name, inputs, outputs in self.functions:
             self.make_function(name, inputs, outputs)
 
-        if self.params:
-            self.saver = tf.train.Saver()
-
         if init_list is True:
             needs_init = set(
                 self.session.run(tf.report_uninitialized_variables())
@@ -156,40 +212,10 @@ class Model(struct):
 
     def make_function(self, name, inputs, outputs):
         """
-        Create an instancemethod-like interface to tf.Session.run().
-
-        Usage:
-        >>> self.make_function('func_name',
-                               {'arg1': arg1_placeholder, 'arg2': arg2_placeholder},
-                               [res1_tensor, res2_tensor])
-        >>> res1_val, res2_val = self.func_name(arg1=arg1_val, arg2=arg2_val)
-
-        Note that when calling the function, you must pass inputs with kwargs.
-        Anything that can be evaluated by `session.run()` can be passed as `outputs`.
+        Create a function `outputs = f(inputs)`
+        that can be used like an instancemethod of the Model.
         """
-
-        def function(**values):
-            feed = {pl: values[name]
-                    for name, pl in inputs.items()}
-            result = self.session.run(outputs, feed_dict=feed)
-            result = structify(result)
-            if len(result) == 1:
-                result = result[0]
-            return result
-
-        in_str = ', '.join(inputs)
-        if isinstance(outputs, list):
-            out_str = ', '.join(o.name for o in outputs)
-        elif isinstance(outputs, dict):
-            out_str = ', '.join(outputs)
-        else:
-            assert False, type(outputs)
-
-        function.__doc__ = """
-        ( % s) = %s(%s)
-        """ % (out_str, name, in_str)
-
-        self[name] = function
+        self[name] = Function(inputs, outputs, self.session, name)
 
     def make_train_op(self, loss, var_list=None):
         """

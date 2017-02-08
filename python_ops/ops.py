@@ -23,7 +23,7 @@ def affine(X, dim_out, name='', scope_name='affine',
     )
     b = scoped_variable(
         'b_%s' % name, scope_name,
-        shape=(dim_out,), dtype=X.dtype,
+        shape=(dim_out,),
         initializer=tf.zeros_initializer,
     )
 
@@ -129,3 +129,33 @@ def batch_norm(X, param, name, update=True):
         )
 
     return normed
+
+
+def spatial_softmax(X):
+    """ Spatial softmax:
+        X has shape [batch, width, height, channels],
+        each channel defines a spatial distribution,
+        taking expectation gives pairs(x, y) of feature points.
+        Output has shape[channels, 2].
+    """
+    _, w, h, _ = X.get_shape()
+    x_map, y_map = tf.linspace(0., 1., w), tf.linspace(0., 1., h)
+    x_map = tf.reshape(x_map, (1, w.value, 1))
+    y_map = tf.reshape(y_map, (1, h.value, 1))
+
+    X = tf.exp(X)
+    fx, fy = tf.reduce_sum(X, [1]), tf.reduce_sum(X, [2])
+    fx /= tf.reduce_sum(fx, [1], keep_dims=True)
+    fy /= tf.reduce_sum(fy, [1], keep_dims=True)
+    fx = tf.reduce_sum(fx * x_map, [1])
+    fy = tf.reduce_sum(fy * y_map, [1])
+
+    return tf.concat(1, [fx, fy])
+
+
+def expand_dims(X, axes):
+    if not isinstance(axes, list):
+        axes = [axes]
+    for axis in sorted(axes):
+        X = tf.expand_dims(X, axis)
+    return X

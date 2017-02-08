@@ -122,3 +122,13 @@ def _validate_axes(axes):
         axes = [axes]
     assert axes is None or isinstance(axes, list)
     return axes
+
+
+def _get_existing_vars(names_and_scopes):
+    variables = {}
+    for name, scope in names_and_scopes:
+        try:
+            variables[(name, scope)] = scoped_variable(name, scope)
+        except ValueError:
+            pass
+    return variables
