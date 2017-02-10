@@ -63,7 +63,6 @@ def conv(X, param, name, scope_name='conv'):
     `params['stride']` is `(1, stride_w, stride_h, 1)` and defaults to `(1, 1, 1, 1)`.
     `params['pad']` is one of `SAME` (default), `VALID`, `CONSTANT`.
     """
-
     _default_value(param, 'stride', (1, 1, 1, 1))
     _default_value(param, 'pad', 'SAME')
     _default_value(param, 'rate', 1)
@@ -217,13 +216,12 @@ class CausalConv1D(object):
         self.params, self.scope = params, scope
         self.name = name
 
-    def make_queue(self, xt, Z=None):
-        B = tf.shape(xt)[0]
+    def make_queue(self, B, xt, Z=None):
         rate = self.params['rate']
         k, _, c_out = self.params['kernel']
         c_in = xt.get_shape()[1].value
 
-        queues = [
+        self.queues = queues = [
             tf.FIFOQueue(
                 rate, dtypes=xt.dtype,
                 name='queue_%d_%s' % (i, self.name)
@@ -231,19 +229,15 @@ class CausalConv1D(object):
             for i in range(k - 1)
         ]
 
-        def body(size):
-            q.dequeue()
-            return q.size()
-
-        sizes = [q.size() for q in queues]
         flush_ops = [
-            tf.while_loop(lambda size: size > 0, body, [size])
-            for size in sizes
+            tf.cond(q.size() > 0, q.dequeue, lambda: tf.constant(float('nan')))
+            for _ in range(rate) for q in queues
         ]
 
         fill_ops = [
             q.enqueue_many(tf.zeros((rate, B, c_in))) for q in queues
         ]
+
         X, x_to_push, push_ops = [xt], xt, []
         for i in range(k - 1):
             x_popped = queues[i].dequeue()
@@ -251,13 +245,12 @@ class CausalConv1D(object):
             push_ops.append(queues[i].enqueue([x_to_push]))
             x_to_push = x_popped
             X.append(x_popped)
+        X = list(reversed(X))
 
         X_next, X_skip = self(X, Z, conv=False)
 
         ops = struct(
-            fill=tf.group(*fill_ops),
-            push=tf.group(*push_ops),
-            flush=tf.group(*flush_ops),
+            fill=fill_ops, push=push_ops, flush=flush_ops,
         )
 
         return X_next, X_skip, ops
@@ -294,10 +287,11 @@ class CausalConv1D(object):
 
         elif self.params['nonlin'] == 'relu':
             if conv:
-                XX = tf.nn.relu(self._do_conv(X, 'x_%s' % self.name))
+                XX = self._do_conv(X, 'x_%s' % self.name)
             else:
                 wx = self.get_weight('kernel_x_%s')
-                XX = tf.nn.relu(tf.einsum('btlu,tluv->bv', X, wx))
+                XX = tf.einsum('btlu,tluv->bv', X, wx)
+            XX = tf.nn.relu(XX)
         else:
             raise ValueError(self.params['nonlin'])
 
@@ -312,7 +306,7 @@ class CausalConv1D(object):
             else:
                 wx_r = tf.squeeze(self.get_weight('kernel_xr_%s'), [0, 1])
                 wx_s = tf.squeeze(self.get_weight('kernel_xs_%s'), [0, 1])
-                X = X_in[-1] + tf.matmul(XX, wx_r)
+                X = X_in[0] + tf.matmul(XX, wx_r)
                 X_skip = tf.matmul(XX, wx_s)
 
         else:

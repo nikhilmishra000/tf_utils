@@ -47,10 +47,12 @@ class Function(object):
 
     @staticmethod
     def generate_string(arg):
-        if isinstance(arg, tf.Tensor) or isinstance(arg, tf.Operation):
+        if isinstance(arg, tf.Tensor) \
+           or isinstance(arg, tf.Operation) \
+           or isinstance(arg, tf.Variable):
             return arg.name
         elif isinstance(arg, list):
-            return ','.join(Function.generate_string(a) for a in arg)
+            return ', '.join(Function.generate_string(a) for a in arg)
         elif isinstance(arg, dict):
             return Function.generate_string(arg.values())
 

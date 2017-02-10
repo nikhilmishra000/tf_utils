@@ -37,7 +37,7 @@ def make_placeholders(variables, dtype='tf.float32'):
         if len(args) == 2 and isinstance(args[1], basestring):
             shape, dtype = args
         else:
-            shape = args
+            shape, dtype = args, 'tf.float32'
         commands.append(
             "{0} = tf.placeholder({2}, {1}, name='{0}')".format(
                 name, shape, dtype
