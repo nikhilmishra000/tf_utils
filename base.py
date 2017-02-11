@@ -5,7 +5,9 @@ import tensorflow as tf
 
 
 def make_session(frac=None):
-    """ Create a tf.Session(), limiting fraction of gpu that is allocated. """
+    """
+    Create a tf.Session(), limiting fraction of gpu that is allocated.
+    """
     if frac is None:
         return tf.Session()
 
@@ -31,6 +33,8 @@ def make_placeholders(variables, dtype='tf.float32'):
          }
          for var in make_placeholders(variables):
              exec(var)
+
+         Z = X_pl + Y_pl
     """
     commands = []
     for name, args in variables.items():
@@ -70,7 +74,6 @@ def make_scoped_cell(CellType, **scope_kwargs):
     For example:
     ```
     from tf.nn.rnn_cell import BasicLSTMCell
-
     ScopedLSTMCell = tfu.make_scoped_cell(BasicLSTMCell)
     ```
 
@@ -96,6 +99,9 @@ def make_scoped_cell(CellType, **scope_kwargs):
 
 
 class struct(dict):
+    """
+    A dict that exposes its entries as attributes.
+    """
 
     def __init__(self, **kwargs):
         dict.__init__(self, kwargs)
@@ -103,6 +109,9 @@ class struct(dict):
 
 
 def structify(obj):
+    """
+    Modify `obj` by replacing `dict`s with `tfu.struct`s.
+    """
     if isinstance(obj, dict):
         obj = struct(**{
             key: structify(val) for key, val in obj.items()
@@ -110,6 +119,10 @@ def structify(obj):
     elif isinstance(obj, list):
         obj = [structify(val) for val in obj]
     return obj
+
+"""
+Below here should not exposed.
+"""
 
 
 def _default_value(params_dict, key, value):

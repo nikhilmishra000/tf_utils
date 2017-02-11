@@ -306,7 +306,7 @@ class CausalConv1D(object):
             else:
                 wx_r = tf.squeeze(self.get_weight('kernel_xr_%s'), [0, 1])
                 wx_s = tf.squeeze(self.get_weight('kernel_xs_%s'), [0, 1])
-                X = X_in[0] + tf.matmul(XX, wx_r)
+                X = X_in[-1] + tf.matmul(XX, wx_r)
                 X_skip = tf.matmul(XX, wx_s)
 
         else:

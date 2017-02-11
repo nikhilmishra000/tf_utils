@@ -11,14 +11,16 @@ class Function(object):
     def __init__(self, inputs, outputs, session=None, name='function'):
         """
         Create a function interface to tf.Session.run().
+        Note that when calling the function, you must pass inputs with kwargs.
 
         Usage:
-        >>> func = Function({'arg1': arg1_placeholder, 'arg2': arg2_placeholder},
-                            [res1_tensor, res2_tensor])
-        >>> res1_val, res2_val = func(arg1=arg1_val, arg2=arg2_val)
+        >>> func = Function(inputs, outputs)
+        >>> output1, output2 = func(input1=val1, input2=val2)
 
-        Note that when calling the function, you must pass inputs with kwargs.
-        Anything that can be evaluated by `session.run()` can be passed as `outputs`.
+        @param inputs: a dict or struct of {str: placeholder}
+        @param outputs: anything can be evaluated by tf.Session.run()
+        @param session: if not given, use `tf.get_default_session()`.
+        @param name: of the function
         """
         in_str = Function.generate_string(inputs)
         out_str = Function.generate_string(outputs)
@@ -40,7 +42,7 @@ class Function(object):
         return result
 
     def __str__(self):
-        return 'tf_utils.Function: ' + self.__doc__
+        return '< tfu.Function: %s >' % self.__doc__
 
     def __repr__(self):
         return str(self)
@@ -69,10 +71,10 @@ class Model(struct):
     ```
     def __init__(self, opts):
       super(Model, self).__init__(opts)
-      self.session = tf.Session()
+      self.session = ...
 
       # make some placeholders
-      X, Y = ...
+      X_pl, Y_pl = ...
 
       # build the graph
       prediction = ...
@@ -81,17 +83,16 @@ class Model(struct):
       global_step, learning_rate, train_op = self.make_train_op(loss)
 
       self.functions = [
-        ('fit', {'X': X, 'Y': Y},
+        ('fit', {'X': X_pl, 'Y': Y_pl},
          [train_op, loss]),
-        ('score', {'X': X, 'Y': Y}, [loss, prediction]),
-        ('predict', {'X': X}, [prediction])
+        ('score', {'X': X_pl, 'Y': Y_pl}, [loss, prediction]),
+        ('predict', {'X': X_pl}, [prediction])
       ]
 
       self.finalize()
     ```
 
     Then, to train and query the model:
-
     ```
     for _ in range(num_iters):
       # get a batch of training data
@@ -106,7 +107,6 @@ class Model(struct):
     x_test = ...
     predictions = self.predict(X=x_test)
     """
-
     scope_name = ''
 
     def __init__(self, opts):
@@ -116,31 +116,34 @@ class Model(struct):
         """
         struct.__init__(self)
         self['opts'] = opts
+        self.functions = []
 
     @property
     def params(self):
-        """ The model parameters, as a list(tf.Variable) """
+        """
+        The model's trainable parameters, as a list(tf.Variable).
+        """
         return [v for v in self.session.graph.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
                 if v.name.startswith(self.scope_name)]
 
     @property
     def param_shapes(self):
         """
-        A list(tuple) of the shapes of model parameters.
+        A list(tuple) of the shapes of `self.params`.
         """
         return [var.get_shape().as_list() for var in self.params]
 
     @property
     def param_names(self):
         """
-        A list(str) of the names of model parameters.
+        A list(str) of the names of `self.params`.
         """
         return [var.name for var in self.params]
 
     @property
     def num_params(self):
         """
-        The total number of parameters in this model.
+        The total number of trainable parameters in this model.
         """
         return sum([np.prod(shape) for shape in self.param_shapes])
 
@@ -164,9 +167,9 @@ class Model(struct):
     def restore(cls, path, **kwargs):
         """
         Restore a model by:
-        (1) Un-pickle-ing a dict from path`
-        (2) Recreating the Model object from that dict.
-        (3) Restoring its parameter values.
+        * Un-pickle-ing a dict from `path`.
+        * Recreating the Model object from that dict.
+        * Restoring its parameter values.
 
         @param path: str
         @param kwargs: override saved values
@@ -179,6 +182,11 @@ class Model(struct):
         return self
 
     def load_from(self, path_or_dict):
+        """
+        Restore saved model parameters,
+        given either a dict of {str: np.array}
+        or the path to a pickled version of such a dict.
+        """
         if isinstance(path_or_dict, basestring):
             opts = pickle.load(open(path_or_dict, 'rb'))
         else:
@@ -189,15 +197,11 @@ class Model(struct):
 
     def finalize(self, init_list=True):
         """
-        If `self.functions` is a list of tuples (str, dict, list),
-        then this method will create instancemethods using `Model.make_function()`.
-        Also gives this model a tf.train.Saver()
-        and initializes all variables.
+        Should be called at the end of the `__init__()` method.
 
-        If `init_list` is `True` (default), initializes the set of variables
-        returned by `tf.report_uninitialized_variables()`.
-
-        Otherwise, it should be a list of variables.
+        Does the following:
+        * Create instancemethods using `tfu.Model.make_function()`.
+        * Initializes all variables (or a subset if `init_list` is specified).
         """
         for name, inputs, outputs in self.functions:
             self.make_function(name, inputs, outputs)
@@ -215,19 +219,18 @@ class Model(struct):
 
     def make_function(self, name, inputs, outputs):
         """
-        Create a function `outputs = f(inputs)`
-        that can be used like an instancemethod of the Model.
+        Create an interface like an instancemethod.
+
+        See `tfu.Function` for details.
         """
         self[name] = Function(inputs, outputs, self.session, name)
 
     def make_train_op(self, loss, var_list=None):
         """
-        Make a training op that minimizes the given loss.
+        Make a training op that minimizes `loss` w.r.t `var_list`.
         Returns the iteration number, learning rate, and train_op.
 
-        All parameters should be in the dict that got passed to __init__
-
-        Required:
+        Required in `self.opts`:
         solver_type: {"RMSProp", "Adam"}
         alpha: learning rate
         beta1, beta2: parameters, (momentum / gamma for RMSP)
@@ -237,6 +240,8 @@ class Model(struct):
         epsilon: constant for numerical stability (default 1e-6)
         lr_decay, lr_step: learning rate multiplies by `lr_decay` every `lr_step` iterations.
         min_alpha: learning rate stops decaying once it gets to `min_alpha`
+
+        @TODO add gradient clipping and support for other optimizition algos
         """
         opts = self.opts
 

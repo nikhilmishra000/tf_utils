@@ -10,9 +10,10 @@ xavier_init = tf.contrib.layers.xavier_initializer()
 
 def affine(X, dim_out, name='', scope_name='affine',
            initializer=xavier_init):
-    """ Affine: X*W + b
-        X has shape [batch, dim_in]
-        Then W, b will be [dim_in, dim_out], [1, dim_out]
+    """
+    Affine layer: X*W + b
+    X has shape [batch, dim_in]
+    Then W, b will be [dim_in, dim_out], [1, dim_out]
     """
     assert X.get_shape().ndims == 2
     dim_in = X.get_shape()[1]
@@ -31,9 +32,8 @@ def affine(X, dim_out, name='', scope_name='affine',
 
 
 def linear(X, dim_out, name='', scope_name='linear'):
-    """ Linear: X*W
-        X has shape [batch, dim_in]
-        Then W, b will be [dim_in, dim_out], [1, dim_out]
+    """
+    Like `tfu.affine` but no bias.
     """
     assert X.get_shape().ndims == 2
     dim_in = X.get_shape()[1]
@@ -67,6 +67,7 @@ def norm(X, axis=None, keep_dims=False, p=2, root=True):
     :param axis: an int, list(int), or None
     :param keep_dims: bool
     :param p: float > 0
+    :param root: if False, don't take the p-th root.
     """
     axis = _validate_axes(axis)
     Y = tf.reduce_sum(tf.pow(X, p), axis, keep_dims)
@@ -85,7 +86,13 @@ def normalize(X, axis):
 
 
 def ravel(X, keep_first_k=1):
+    """
+    Flatten a tensor with shape `[d_1, ..., d_n]`
+    to one of shape `[d_1, ..., d_k, D]`,
+    where `D = d_{k+1} * ... * d_n`.
+    """
     shape = X.get_shape().as_list()
+    assert keep_first_k <= len(shape)
     assert None not in shape[keep_first_k:]
 
     d = np.prod(shape[keep_first_k:])
@@ -96,6 +103,14 @@ def ravel(X, keep_first_k=1):
 
 
 def batch_norm(X, param, name, update=True):
+    """
+    Batch-norm: normalizing `X` to standard normal.
+
+    Like `tf.nn.batch_normalization` but takes a dict and creates Variables for you.
+    Also automatically adds update ops to `tf.GraphKeys.UPDATE_OPS`.
+
+    @warning: untested
+    """
     axis = _validate_axes(param['axis'])
     mu, sigsq = tf.nn.moments(X, axis)
 
@@ -132,11 +147,14 @@ def batch_norm(X, param, name, update=True):
 
 
 def spatial_softmax(X):
-    """ Spatial softmax:
-        X has shape [batch, width, height, channels],
-        each channel defines a spatial distribution,
-        taking expectation gives pairs(x, y) of feature points.
-        Output has shape[channels, 2].
+    """
+    Spatial softmax: X has shape[batch, width, height, channels].
+
+    Interpret each channel as unnormalized log PMF values
+    over the [width, height] spatial dimensions.
+
+    Return a list of points representing the expectation of each distribution,
+    output has shape [batch, 2 * channels].
     """
     _, w, h, _ = X.get_shape()
     x_map, y_map = tf.linspace(0., 1., w), tf.linspace(0., 1., h)
@@ -154,8 +172,17 @@ def spatial_softmax(X):
 
 
 def expand_dims(X, axes):
-    if not isinstance(axes, list):
-        axes = [axes]
-    for axis in sorted(axes):
-        X = tf.expand_dims(X, axis)
-    return X
+    """
+    Like `tf.expand_dims()` but better if you want to expand multiple axes.
+
+    :param axes: list(int)
+    """
+    if isinstance(axes, int):
+        return tf.expand_dims(X, axes)
+
+    else:
+        shape = [tf.shape(X)[i] if dim is None else dim
+                 for i, dim in enumerate(X.get_shape().as_list())]
+        for ax in axes:
+            shape.insert(ax, 1)
+        return tf.reshape(X, shape)
