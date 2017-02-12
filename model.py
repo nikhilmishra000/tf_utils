@@ -228,6 +228,7 @@ class Model(struct):
     def make_train_op(self, loss, var_list=None):
         """
         Make a training op that minimizes `loss` w.r.t `var_list`.
+        Groups any `tf.GraphKeys.UPDATE_OPS` to be run with the train op.
         Returns the iteration number, learning rate, and train_op.
 
         Required in `self.opts`:
@@ -263,8 +264,9 @@ class Model(struct):
             alpha = tf.Variable(opts['alpha'],
                                 name='learning_rate', trainable=False)
 
-        solver = SolverType(alpha, opts["beta1"],
-                            opts["beta2"], epsilon=epsilon)
+        solver = SolverType(
+            alpha, opts["beta1"], opts["beta2"], epsilon=epsilon
+        )
         train_op = solver.minimize(loss, step, var_list)
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
         ops = [train_op] + update_ops
