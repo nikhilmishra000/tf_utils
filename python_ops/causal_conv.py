@@ -57,12 +57,11 @@ class CausalConv1D(object):
     def cell(self):
         k, _, c_out = self.params['kernel']
         rate = self.params['rate']
-        c_in = self.weights.values()[0].get_shape()[2].value
         parent = self
 
         class CausalConvCell(object):
 
-            def zero_state(self, B):
+            def zero_state(self, B, c_in):
                 return [
                     [tf.zeros((B, c_in)) for _ in range(rate)]
                     for i in range(k - 1)
@@ -136,6 +135,7 @@ class CausalConv1D(object):
             else:
                 wx_f = self.get_weight('kernel_xf_%s')
                 wx_g = self.get_weight('kernel_xg_%s')
+
                 xf = tf.einsum('btlu,tluv->bv', X, wx_f)
                 xg = tf.einsum('btlu,tluv->bv', X, wx_g)
 
