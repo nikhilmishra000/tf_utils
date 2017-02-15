@@ -62,11 +62,33 @@ class CausalConv1D(object):
 
         class CausalConvCell(object):
 
-            def zero_state(self, B):
-                return [
-                    [tf.zeros((B, c_in)) for _ in range(rate)]
-                    for i in range(k - 1)
-                ]
+            def __init__(self, name, scope):
+                self.name = name
+                self.scope = scope
+
+            def zero_state(self, B, c_in, dtype=tf.float32):
+                if dtype == tf.float32:
+                    return [
+                        [{"shape": (B, c_in),
+                          "name": self.scope + "l%ir%ik%i" % (self.name, j, i)} 
+                         for j in range(rate)]
+                        for i in range(k - 1)
+                    ]
+                elif dtype == "placeholder":
+                    return [
+                        [tf.placeholder(
+                            tf.float32,
+                            shape=(B, c_in),
+                            name=self.scope + "l%ir%ik%i" % (self.name, j, i)) 
+                         for j in range(rate)]
+                        for i in range(k - 1)
+                    ]
+                else:
+                    return [
+                        [np.zeros((B, c_in))
+                         for _ in range(rate)]
+                        for i in range(k - 1)
+                    ]
 
             def __call__(self, queues, xt, Z=None):
                 X, x_to_push = [xt], xt
@@ -79,7 +101,7 @@ class CausalConv1D(object):
                 X_next, X_skip = parent(X, Z, conv=False)
                 return X_next, X_skip
 
-        return CausalConvCell()
+        return CausalConvCell(self.name, self.scope)
 
     def make_queue(self, B, xt, Z=None):
         rate = self.params['rate']
