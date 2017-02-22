@@ -66,26 +66,24 @@ class CausalConv1D(object):
                 self.name = name
                 self.scope = scope
 
-            def zero_state(self, B, c_in, dtype=tf.float32):
-                if dtype == tf.float32:
+            def zero_state(self, B, dtype=tf.float32):
+                if isinstance(dtype, tf.DType):
                     return [
-                        [{"shape": (B, c_in),
-                          "name": self.scope + "l%ir%ik%i" % (self.name, j, i)} 
-                         for j in range(rate)]
+                        [tf.zeros((B, c_in), dtype=dtype)
+                         for _ in range(rate)]
                         for i in range(k - 1)
                     ]
-                elif dtype == "placeholder":
+
+                elif dtype == tf.placeholder:
                     return [
-                        [tf.placeholder(
-                            tf.float32,
-                            shape=(B, c_in),
-                            name=self.scope + "l%ir%ik%i" % (self.name, j, i)) 
-                         for j in range(rate)]
-                        for i in range(k - 1)
-                    ]
+                    [tf.placeholder(tf.float32, shape=(B, c_in)) for j in range(rate)] 
+                    for i in range(k - 1)]
+
                 else:
+                    assert np.dtype(dtype) is not None, "Need a numpy dtype"
+                    assert isinstance(B, int)
                     return [
-                        [np.zeros((B, c_in))
+                        [np.zeros((B, c_in), dtype=dtype)
                          for _ in range(rate)]
                         for i in range(k - 1)
                     ]

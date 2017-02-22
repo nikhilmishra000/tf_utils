@@ -37,6 +37,8 @@ class Function(object):
     def __call__(self, **kwargs):
         feed = {pl: kwargs[name]
                 for name, pl in self.inputs.items()}
+
+        # writer = tf.train.SummaryWriter("logs", graph = tf.get_default_graph())
         result = self.session.run(self.outputs, feed_dict=feed)
         result = structify(result)
         return result
