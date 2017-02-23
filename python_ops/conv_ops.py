@@ -105,6 +105,21 @@ def conv(X, param, name, scope_name='conv'):
     return conv
 
 
+def pool(X, param, scope_name='pool'):
+    """
+    Max Pooling:
+    `X` has shape `[B, W, H, C_in]`.
+    `params['kernel']` is a tuple `(kw, kh)` and defaults to `(2,2)`.
+    `params['stride']` is `(1, stride_w, stride_h, 1)` and defaults to `(2, 2)`.
+    `params['pad']` is one of `SAME` (default), `VALID`.
+    """    
+    _default_value(param, 'stride', (2, 2))
+    _default_value(param, 'kernel', (2, 2))
+    _default_value(param, 'pad', 'SAME')
+
+    return tf.contrib.layers.max_pool2d(X, kernel, stride, pad, scope_name)
+
+
 def deconv(X, param, name, scope_name='deconv'):
     """
     Deconvolution:
