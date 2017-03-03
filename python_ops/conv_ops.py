@@ -60,10 +60,10 @@ def pool(X, param, scope_name='pool'):
     `X` has shape `[B, W, H, C_in]`.
     `params['type']` is a string "max" or "mean".
     `params['kernel']` is a tuple `(kw, kh)`.
-    `params['stride']` is `(stride_w, stride_h)` and defaults to `(1, 1)`.
+    `params['stride']` is `(stride_w, stride_h)` and defaults to `param['kernel']`.
     `params['pad']` is one of `SAME` (default), `VALID`.
     """
-    _default_value(param, 'stride', (1, 1))
+    _default_value(param, 'stride', param['kernel'])
     _default_value(param, 'pad', 'SAME')
 
     pool_func = \
