@@ -54,6 +54,27 @@ def _get_kernel(name, scope_name, ker_shape):
     )
 
 
+def pool(X, param, scope_name='pool'):
+    """
+    Pooling:
+    `X` has shape `[B, W, H, C_in]`.
+    `params['type']` is a string "max" or "mean".
+    `params['kernel']` is a tuple `(kw, kh)`.
+    `params['stride']` is `(stride_w, stride_h)` and defaults to `(1, 1)`.
+    `params['pad']` is one of `SAME` (default), `VALID`.
+    """
+    _default_value(param, 'stride', (1, 1))
+    _default_value(param, 'pad', 'SAME')
+
+    pool_func = \
+        tf.contrib.layers.avg_pool2d if param.get('pool') == 'mean' \
+        else tf.contrib.layers.max_pool2d
+
+    kernel, stride = param['kernel'], param['stride']
+
+    return pool_func(X, kernel, stride, param['pad'], scope=scope_name)
+
+
 def conv(X, param, name, scope_name='conv'):
     """
     Convolution:
@@ -101,6 +122,9 @@ def conv(X, param, name, scope_name='conv'):
             shape=bias_shape,
             initializer=tf.zeros_initializer,
         )
+
+    if param.get('pool'):
+        conv = pool(conv, param['pool'])
 
     return conv
 
