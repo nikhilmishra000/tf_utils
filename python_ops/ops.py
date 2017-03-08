@@ -52,6 +52,7 @@ def make_stack(func):
             nonlin = [nonlin] * len(params)
         for i, param in enumerate(params):
             X = func(X, param, i, name)
+            print X
             if not raw_output or i + 1 < len(params):
                 X = nonlin[i](X)
         return X
