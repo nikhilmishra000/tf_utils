@@ -123,25 +123,45 @@ def conv(X, param, name, scope_name='conv'):
             initializer=tf.zeros_initializer,
         )
 
+    if param.get('batch_norm'):
+        b_param = param['batch_norm']
+        decay = b_param.get('decay', 0.99)
+        center = b_param.get('center', True)
+        scale = b_param.get('scale', True)
+        epsilon = b_param.get('epsilon', 0.01)
+        is_training = b_param.get('epsilon', True)
+        conv = tf.contrib.layers.batch_norm(
+            inputs=conv,
+            decay=decay,
+            center=center,
+            scale=scale,
+            epsilon=epsilon,
+            is_training=is_training
+        )
+
     if param.get('pool'):
         conv = pool(conv, param['pool'])
 
     return conv
 
 
-def pool(X, param, scope_name='pool'):
-    """
-    Max Pooling:
-    `X` has shape `[B, W, H, C_in]`.
-    `params['kernel']` is a tuple `(kw, kh)` and defaults to `(2,2)`.
-    `params['stride']` is `(1, stride_w, stride_h, 1)` and defaults to `(2, 2)`.
-    `params['pad']` is one of `SAME` (default), `VALID`.
-    """    
-    _default_value(param, 'stride', (2, 2))
-    _default_value(param, 'kernel', (2, 2))
-    _default_value(param, 'pad', 'SAME')
+# def pool(X, param, scope_name='pool'):
+#     """
+#     Max Pooling:
+#     `X` has shape `[B, W, H, C_in]`.
+#     `params['kernel']` is a tuple `(kw, kh)` and defaults to `(2,2)`.
+#     `params['stride']` is `(1, stride_w, stride_h, 1)` and defaults to `(2, 2)`.
+#     `params['pad']` is one of `SAME` (default), `VALID`.
+#     """    
+#     _default_value(param, 'stride', (2, 2))
+#     _default_value(param, 'kernel', (2, 2))
+#     _default_value(param, 'pad', 'SAME')
 
-    return tf.contrib.layers.max_pool2d(X, kernel, stride, pad, scope_name)
+#     stride = param['stride']
+#     kernel = param['kernel']
+#     pad = param['pad']
+
+#     return tf.contrib.layers.max_pool2d(X, kernel, stride, pad, scope_name)
 
 
 def deconv(X, param, name, scope_name='deconv'):

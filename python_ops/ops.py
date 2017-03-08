@@ -25,7 +25,7 @@ def affine(X, dim_out, name='', scope_name='affine',
     b = scoped_variable(
         'b_%s' % name, scope_name,
         shape=(dim_out,),
-        initializer=tf.zeros_initializer,
+        initializer=tf.zeros_initializer(),
     )
 
     return tf.nn.xw_plus_b(X, W, b, 'affine_%s' % name)
