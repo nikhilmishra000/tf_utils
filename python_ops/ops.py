@@ -25,7 +25,7 @@ def affine(X, dim_out, name='', scope_name='affine',
     b = scoped_variable(
         'b_%s' % name, scope_name,
         shape=(dim_out,),
-        initializer=tf.zeros_initializer,
+        initializer=tf.zeros_initializer(X.dtype),
     )
 
     return tf.nn.xw_plus_b(X, W, b, 'affine_%s' % name)
@@ -52,7 +52,6 @@ def make_stack(func):
             nonlin = [nonlin] * len(params)
         for i, param in enumerate(params):
             X = func(X, param, i, name)
-            print X
             if not raw_output or i + 1 < len(params):
                 X = nonlin[i](X)
         return X
@@ -169,7 +168,7 @@ def spatial_softmax(X):
     fx = tf.reduce_sum(fx * x_map, [1])
     fy = tf.reduce_sum(fy * y_map, [1])
 
-    return tf.concat(1, [fx, fy])
+    return tf.concat([fx, fy], axis=1)
 
 
 def expand_dims(X, axes):

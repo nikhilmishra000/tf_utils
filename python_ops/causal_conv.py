@@ -122,7 +122,7 @@ class CausalConv1D(object):
 
     def __call__(self, X_in, Z=None, conv=True):
         if isinstance(X_in, list):
-            X = expand_dims(tf.pack(X_in, axis=1), axes=2)
+            X = expand_dims(tf.stack(X_in, axis=1), axes=2)
         else:
             X = X_in
 

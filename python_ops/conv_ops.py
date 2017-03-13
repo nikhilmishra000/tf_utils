@@ -33,16 +33,16 @@ def _constant_pad(X, ker_shape):
     wb, wa = kw // 2, kw - kw // 2 - 1
     hb, ha = kh // 2, kh - kh // 2 - 1
 
-    X_ = tf.concat(1, [
+    X_ = tf.concat([
         tf.tile(X[:, :1], (1, wb, 1, 1)),
         X,
         tf.tile(X[:, -1:], (1, wa, 1, 1)),
-    ])
-    X_pad = tf.concat(2, [
+    ], axis=1)
+    X_pad = tf.concat([
         tf.tile(X_[:, :, :1], (1, 1, hb, 1)),
         X_,
         tf.tile(X_[:, :, -1:], (1, 1, ha, 1)),
-    ])
+    ], axis=1)
 
     return X_pad
 
@@ -181,11 +181,11 @@ def deconv(X, param, name, scope_name='deconv'):
         wh_dims += param['kernel'][:2]
         wh_dims -= 1
 
-    output_shape = tf.concat(0, [
+    output_shape = tf.concat([
         input_shape[:1],
         wh_dims,
         param['kernel'][2:3]
-    ])
+    ], axis=0)
 
     deconv = tf.nn.conv2d_transpose(X, kernel,
                                     output_shape, param['stride'],
