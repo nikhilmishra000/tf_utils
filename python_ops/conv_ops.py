@@ -53,6 +53,33 @@ def _get_kernel(name, scope_name, ker_shape):
         initializer=tf.contrib.layers.xavier_initializer_conv2d()
     )
 
+BATCH_NORM_TRAIN = "batch_norm_train"
+BATCH_NORM_TEST = "batch_norm_test"
+
+
+def batch_norm(X, param, name, scope_name="batch_norm"):
+    decay = param.get("decay", 0.99)
+    center = param.get("center", True)
+    scale = param.get("scale", True)
+    epsilon = param.get("epsilon", 1e-6)
+
+    is_training = scoped_variable(
+        "is_training", '%s_%s' % (name, scope_name),
+        trainable=False, dtype=tf.bool, initializer=True,
+    )
+
+    tf.add_to_collection(BATCH_NORM_TRAIN, tf.assign(is_training, True))
+    tf.add_to_collection(BATCH_NORM_TEST, tf.assign(is_training, False))
+
+    return tf.contrib.layers.batch_norm(
+        inputs=X,
+        decay=decay,
+        center=center,
+        scale=scale,
+        epsilon=epsilon,
+        is_training=is_training
+    )
+
 
 def pool(X, param, scope_name='pool'):
     """
@@ -123,10 +150,22 @@ def conv(X, param, name, scope_name='conv'):
             initializer=tf.zeros_initializer,
         )
 
-    if param.get('pool'):
-        conv = pool(conv, param['pool'])
-
     return conv
+
+
+def conv_layer(X, param, name, scope_name="conv_layer"):
+    X = conv(X, param, name)
+
+    if param.get("batch_norm"):
+        X = batch_norm(X, param["batch_norm"], name)
+
+    if param.get("nonlin"):
+        X = param["nonlin"](X)
+
+    if param.get("pool"):
+        X = pool(X, param["pool"], name)
+
+    return X
 
 
 def deconv(X, param, name, scope_name='deconv'):

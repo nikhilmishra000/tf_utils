@@ -7,6 +7,7 @@ from python_ops import \
     ravel, batch_norm, expand_dims, \
     pool, conv, deconv, conv_1x1, CausalConv1D, causal_conv, \
     norm, normalize, spatial_softmax, \
-    make_stack, fc_stack, conv_stack, deconv_stack
+    make_stack, fc_stack, conv_stack, deconv_stack, conv_layer, \
+    BATCH_NORM_TRAIN, BATCH_NORM_TEST
 
 from model import Model, Function
