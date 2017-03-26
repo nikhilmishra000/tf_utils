@@ -53,32 +53,59 @@ def _get_kernel(name, scope_name, ker_shape):
         initializer=tf.contrib.layers.xavier_initializer_conv2d()
     )
 
-BATCH_NORM_TRAIN = "batch_norm_train"
-BATCH_NORM_TEST = "batch_norm_test"
 
-
-def batch_norm(X, param, name, scope_name="batch_norm"):
+def batch_norm(X, param, is_training, name, scope_name="batch_norm"):
     decay = param.get("decay", 0.99)
     center = param.get("center", True)
     scale = param.get("scale", True)
-    epsilon = param.get("epsilon", 1e-6)
+    epsilon = param.get("epsilon", 1e-4)
 
-    is_training = scoped_variable(
-        "is_training", '%s_%s' % (name, scope_name),
-        trainable=False, dtype=tf.bool, initializer=True,
+    shape = X.get_shape().as_list()
+
+    moving_mean = scoped_variable(
+        'moving_mean', '%s_%s' % (name, scope_name),
+        trainable=False, shape=[1, 1, 1, shape[-1]],
+        initializer=tf.zeros_initializer(tf.float32),
     )
 
-    tf.add_to_collection(BATCH_NORM_TRAIN, tf.assign(is_training, True))
-    tf.add_to_collection(BATCH_NORM_TEST, tf.assign(is_training, False))
-
-    return tf.contrib.layers.batch_norm(
-        inputs=X,
-        decay=decay,
-        center=center,
-        scale=scale,
-        epsilon=epsilon,
-        is_training=is_training
+    moving_var = scoped_variable(
+        'moving_var', '%s_%s' % (name, scope_name),
+        trainable=False, shape=[1, 1, 1, shape[-1]],
+        initializer=tf.ones_initializer(tf.float32),
     )
+
+    gamma = scoped_variable(
+        'gamma', '%s_%s' % (name, scope_name),
+        shape=[1, 1, 1, shape[-1]],
+        initializer=tf.ones_initializer(tf.float32),
+    )
+    beta = scoped_variable(
+        'beta', '%s_%s' % (name, scope_name),
+        shape=[1, 1, 1, shape[-1]],
+        initializer=tf.zeros_initializer(tf.float32),
+    )
+
+    if is_training:
+        mu = tf.reduce_mean(X, axis=[0, 1, 2], keep_dims=True)
+        var = tf.reduce_mean(
+            tf.square(X - mu), axis=[0, 1, 2], keep_dims=True
+        )
+
+        normed = (X - mu) / tf.sqrt(var + epsilon)
+        update_mean = tf.assign(
+            moving_mean, decay * moving_mean + (1 - decay) * mu
+        )
+        update_var = tf.assign(
+            moving_var, decay * moving_var + (1 - decay) * var
+        )
+
+        tf.add_to_collection(tf.GraphKeys.UPDATE_OPS, update_mean)
+        tf.add_to_collection(tf.GraphKeys.UPDATE_OPS, update_var)
+
+    else:
+        normed = (X - moving_mean) / tf.sqrt(epsilon + moving_var)
+
+    return gamma * normed + beta
 
 
 def pool(X, param, scope_name='pool'):
@@ -93,8 +120,7 @@ def pool(X, param, scope_name='pool'):
     _default_value(param, 'stride', param['kernel'])
     _default_value(param, 'pad', 'SAME')
 
-    pool_func = \
-        tf.contrib.layers.avg_pool2d if param.get('pool') == 'mean' \
+    pool_func = tf.contrib.layers.avg_pool2d if param.get('pool') == 'mean' \
         else tf.contrib.layers.max_pool2d
 
     kernel, stride = param['kernel'], param['stride']

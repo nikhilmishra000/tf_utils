@@ -150,13 +150,15 @@ class CausalConv1D(object):
 
             XX = tf.tanh(xf) * tf.sigmoid(xg)
 
-        elif self.params['nonlin'] == 'relu':
+        elif isinstance(self.params['nonlin'], type(lambda: None)):
+            nonlin = self.params['nonlin']
             if conv:
                 XX = self._do_conv(X, 'x_%s' % self.name)
             else:
                 wx = self.get_weight('kernel_x_%s')
                 XX = tf.einsum('btlu,tluv->bv', X, wx)
-            XX = tf.nn.relu(XX)
+            XX = nonlin(XX)
+
         else:
             raise ValueError(self.params['nonlin'])
 
@@ -208,15 +210,12 @@ class CausalConv1D(object):
                 ('kernel_xs_%s' % self.name, self.scope),
             ])
 
-        elif self.params['nonlin'] == 'relu':
+        else:
             weights = _get_existing_vars([
                 ('kernel_x_%s' % self.name, self.scope),
                 ('kernel_xr_%s' % self.name, self.scope),
                 ('kernel_xs_%s' % self.name, self.scope),
             ])
-
-        else:
-            raise ValueError(self.params['nonlin'])
 
         assert len(weights) > 0, \
             "Weights have not been created yet"
