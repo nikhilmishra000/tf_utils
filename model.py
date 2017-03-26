@@ -267,8 +267,20 @@ class Model(struct):
         solver = SolverType(
             alpha, opts["beta1"], opts["beta2"], epsilon=epsilon
         )
-        train_op = solver.minimize(loss, step, var_list)
-        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+        if 'grad_clip' not in opts:
+            train_op = solver.minimize(loss, step, var_list)
+        else:
+            clip = opts['grad_clip']
+            grads = solver.compute_gradients(loss, var_list)
+            clipped = [
+                (tf.clip_by_value(grad, -clip, +clip), var)
+                for grad, var in grads
+            ]
+            train_op = solver.apply_gradients(clipped, step)
+
+        update_ops = tf.get_collection(
+            tf.GraphKeys.UPDATE_OPS, scope=self.scope_name
+        )
         ops = [train_op] + update_ops
         return step, alpha, tf.group(*ops)
 
