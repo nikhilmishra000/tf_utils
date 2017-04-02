@@ -10,3 +10,5 @@ from python_ops import \
     make_stack, fc_stack, conv_stack, deconv_stack
 
 from model import Model, Function
+
+from dist import NormalDist

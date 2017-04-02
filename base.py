@@ -113,7 +113,7 @@ def structify(obj):
     Modify `obj` by replacing `dict`s with `tfu.struct`s.
     """
     if isinstance(obj, dict):
-        obj = struct(**{
+        obj = type(obj)(**{
             key: structify(val) for key, val in obj.items()
         })
     elif isinstance(obj, list):

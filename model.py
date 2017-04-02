@@ -36,7 +36,8 @@ class Function(object):
 
     def __call__(self, **kwargs):
         feed = {pl: kwargs[name]
-                for name, pl in self.inputs.items()}
+                for name, pl in self.inputs.items()
+                if name in kwargs}
         result = self.session.run(self.outputs, feed_dict=feed)
         result = structify(result)
         return result
@@ -225,7 +226,7 @@ class Model(struct):
         """
         self[name] = Function(inputs, outputs, self.session, name)
 
-    def make_train_op(self, loss, var_list=None):
+    def make_train_op(self, loss, var_list=None, solver=None):
         """
         Make a training op that minimizes `loss` w.r.t `var_list`.
         Groups any `tf.GraphKeys.UPDATE_OPS` to be run with the train op.
@@ -244,7 +245,8 @@ class Model(struct):
 
         @TODO add gradient clipping and support for other optimizition algos
         """
-        opts = self.opts
+        opts = self.opts if solver is None else solver
+        var_list = self.params if var_list is None else var_list
 
         SolverType = eval("tf.train.{0}Optimizer".
                           format(opts["solver_type"]))
