@@ -170,12 +170,12 @@ def conv(X, param, name, scope_name='conv'):
 
     if param.get('bias'):
         bias_shape = (1, 1, 1, c_out)
-        conv += scoped_variable(
+        bias = scoped_variable(
             'ker_bias_%s' % name, scope_name,
             shape=bias_shape,
             initializer=tf.zeros_initializer,
         )
-
+        conv += bias
     return conv
 
 

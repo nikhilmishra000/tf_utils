@@ -33,6 +33,7 @@ def causal_conv(X, param, name, scope):
 
 
 class CausalConv1D(object):
+
     """
     Implements an efficient one-dimensional dilated convolution layer.
 
@@ -138,6 +139,9 @@ class CausalConv1D(object):
                 wx_g = self.get_weight('kernel_xg_%s')
                 xf = tf.einsum('btlu,tluv->bv', X, wx_f)
                 xg = tf.einsum('btlu,tluv->bv', X, wx_g)
+                if self.params.get('bias'):
+                    xf += tf.squeeze(self.get_weight('ker_bias_xf_%s'), [1, 2])
+                    xg += tf.squeeze(self.get_weight('ker_bias_xg_%s'), [1, 2])
 
             if Z is not None:
                 zf = linear(Z, c_out, 'zf_%s' % self.name, self.scope)
@@ -206,6 +210,8 @@ class CausalConv1D(object):
             weights = _get_existing_vars([
                 ('kernel_xf_%s' % self.name, self.scope),
                 ('kernel_xg_%s' % self.name, self.scope),
+                ('ker_bias_xf_%s' % self.name, self.scope),
+                ('ker_bias_xg_%s' % self.name, self.scope),
                 ('kernel_xr_%s' % self.name, self.scope),
                 ('kernel_xs_%s' % self.name, self.scope),
             ])
@@ -213,6 +219,7 @@ class CausalConv1D(object):
         else:
             weights = _get_existing_vars([
                 ('kernel_x_%s' % self.name, self.scope),
+                ('ker_bias_x_%s' % self.name, self.scope),
                 ('kernel_xr_%s' % self.name, self.scope),
                 ('kernel_xs_%s' % self.name, self.scope),
             ])
