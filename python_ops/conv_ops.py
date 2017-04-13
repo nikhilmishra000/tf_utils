@@ -47,10 +47,13 @@ def _constant_pad(X, ker_shape):
     return X_pad
 
 
-def _get_kernel(name, scope_name, ker_shape):
+def _get_kernel(name, scope_name, ker_shape, initializer=None):
+    if initializer is None:
+        initializer = tf.contrib.layers.xavier_initializer_conv2d()
+
     return scoped_variable(
         'kernel_%s' % name, scope_name, shape=ker_shape,
-        initializer=tf.contrib.layers.xavier_initializer_conv2d()
+        initializer=initializer,
     )
 
 
@@ -151,7 +154,8 @@ def conv(X, param, name, scope_name='conv'):
         X = _constant_pad(X, ker_shape)
         pad_type = 'VALID'
 
-    kernel = _get_kernel(name, scope_name, ker_shape)
+    kernel = _get_kernel(name, scope_name, ker_shape,
+                         initializer=param.get('initializer'))
 
     if param['rate'] == 1:
         conv = tf.nn.conv2d(

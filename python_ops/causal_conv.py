@@ -134,6 +134,10 @@ class CausalConv1D(object):
             if conv:
                 xf = self._do_conv(X, 'xf_%s' % self.name)
                 xg = self._do_conv(X, 'xg_%s' % self.name)
+
+                tf.add_to_collection('tanh', xf)
+                tf.add_to_collection('sigmoid', xg)
+
             else:
                 wx_f = self.get_weight('kernel_xf_%s')
                 wx_g = self.get_weight('kernel_xg_%s')

@@ -142,3 +142,9 @@ def expand_dims(X, axes):
         for ax in axes:
             shape.insert(ax, 1)
         return tf.reshape(X, shape)
+
+
+def leaky_relu(x, leak=0.1, name='LeakyReLU'):
+    with tf.name_scope(name):
+        f1, f2 = 0.5 * (1 + leak), 0.5 * (1 - leak)
+        return f1 * x + f2 * tf.abs(x)
