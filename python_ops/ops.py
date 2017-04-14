@@ -102,50 +102,6 @@ def ravel(X, keep_first_k=1):
     return tf.reshape(X, new_shape)
 
 
-def batch_norm(X, param, name, update=True):
-    """
-    Batch-norm: normalizing `X` to standard normal.
-
-    Like `tf.nn.batch_normalization` but takes a dict and creates Variables for you.
-    Also automatically adds update ops to `tf.GraphKeys.UPDATE_OPS`.
-
-    @warning: untested
-    """
-    axis = _validate_axes(param['axis'])
-    mu, sigsq = tf.nn.moments(X, axis)
-
-    shape = [1 if d in axis else d
-             for d in X.get_shape().as_list()]
-    mean = scoped_variable('mean', name, initial_value=tf.zeros(shape))
-    std = scoped_variable('var', name, initial_value=tf.ones(shape))
-
-    if not update:
-        normed = (X - mean) / std
-
-    else:
-        g = param['alpha']
-        new_mean = (1 - g) * mean + g * mu
-        new_std = (1 - g) * std + g * tf.sqrt(sigsq)
-
-        normed = X - new_mean
-        if 'gamma' in param:
-            normed *= param['gamma']
-
-        eps = param.get('epsilon', 1e-8)
-        normed /= (new_std + eps)
-        if 'beta' in param:
-            normed += param['beta']
-
-        tf.add_to_collection(
-            tf.GraphKeys.UPDATE_OPS, tf.assign(mean, new_mean)
-        )
-        tf.add_to_collection(
-            tf.GraphKeys.UPDATE_OPS, tf.assign(std, new_std)
-        )
-
-    return normed
-
-
 def spatial_softmax(X):
     """
     Spatial softmax: X has shape[batch, width, height, channels].
@@ -186,3 +142,9 @@ def expand_dims(X, axes):
         for ax in axes:
             shape.insert(ax, 1)
         return tf.reshape(X, shape)
+
+
+def leaky_relu(x, leak=0.1, name='LeakyReLU'):
+    with tf.name_scope(name):
+        f1, f2 = 0.5 * (1 + leak), 0.5 * (1 - leak)
+        return f1 * x + f2 * tf.abs(x)

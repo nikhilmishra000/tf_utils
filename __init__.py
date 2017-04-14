@@ -4,10 +4,10 @@ from base import struct, structify, \
 
 from python_ops import \
     linear, affine, \
-    ravel, batch_norm, expand_dims, \
+    ravel, batch_norm, expand_dims, leaky_relu, \
     pool, conv, deconv, conv_1x1, CausalConv1D, causal_conv, \
     norm, normalize, spatial_softmax, \
-    make_stack, fc_stack, conv_stack, deconv_stack
+    make_stack, fc_stack, conv_stack, deconv_stack, conv_layer
 
 from model import Model, Function
 

@@ -61,6 +61,7 @@ class Function(object):
 
 
 class Model(struct):
+
     """
     A base class from which to derive different models.
     Provides methods and attributes for commonly-done things.
@@ -148,13 +149,18 @@ class Model(struct):
         """
         return sum([np.prod(shape) for shape in self.param_shapes])
 
+    @property
+    def variables(self):
+        return [v for v in self.session.graph.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
+                if v.name.startswith(self.scope_name)]
+
     def save(self, path, **kwargs):
         """
         Save this model, pickling its parameter values, opts struct, and kwargs.
         @param path: str, where to save it
         """
         data = dict(**kwargs)
-        for tensor in self.params:
+        for tensor in self.variables:
             data[tensor.name] = tensor.eval(session=self.session)
         data.update(self.opts)
 
@@ -192,22 +198,22 @@ class Model(struct):
             opts = pickle.load(open(path_or_dict, 'rb'))
         else:
             opts = path_or_dict
-        for v in self.params:
+        for v in self.variables:
             self.session.run(v.assign(opts.pop(v.name)))
         return self
 
-    def finalize(self, init_list=True):
+    def finalize(self, init_list=None):
         """
-        Should be called at the end of the `__init__()` method.
+        Should be called at the end of the `__init__` method.
 
         Does the following:
         * Create instancemethods using `tfu.Model.make_function()`.
-        * Initializes all variables (or a subset if `init_list` is specified).
+        * Initializes variables (either specified by `init_list`, or all uninitialized variables).
         """
         for name, inputs, outputs in self.functions:
             self.make_function(name, inputs, outputs)
 
-        if init_list is True:
+        if init_list is None:
             needs_init = set(
                 self.session.run(tf.report_uninitialized_variables())
             )
@@ -269,8 +275,21 @@ class Model(struct):
         solver = SolverType(
             alpha, opts["beta1"], opts["beta2"], epsilon=epsilon
         )
-        train_op = solver.minimize(loss, step, var_list)
-        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+        if 'grad_clip' not in opts:
+            train_op = solver.minimize(loss, step, var_list)
+        else:
+            clip = opts['grad_clip']
+            grads = solver.compute_gradients(loss, var_list)
+            clipped = [
+                (tf.clip_by_value(grad, -clip, +clip), var)
+                for grad, var in grads
+                if grad is not None
+            ]
+            train_op = solver.apply_gradients(clipped, step)
+
+        update_ops = tf.get_collection(
+            tf.GraphKeys.UPDATE_OPS, scope=self.scope_name
+        )
         ops = [train_op] + update_ops
         return step, alpha, tf.group(*ops)
 

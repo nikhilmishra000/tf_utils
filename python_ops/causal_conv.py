@@ -33,6 +33,7 @@ def causal_conv(X, param, name, scope):
 
 
 class CausalConv1D(object):
+
     """
     Implements an efficient one-dimensional dilated convolution layer.
 
@@ -133,11 +134,18 @@ class CausalConv1D(object):
             if conv:
                 xf = self._do_conv(X, 'xf_%s' % self.name)
                 xg = self._do_conv(X, 'xg_%s' % self.name)
+
+                tf.add_to_collection('tanh', xf)
+                tf.add_to_collection('sigmoid', xg)
+
             else:
                 wx_f = self.get_weight('kernel_xf_%s')
                 wx_g = self.get_weight('kernel_xg_%s')
                 xf = tf.einsum('btlu,tluv->bv', X, wx_f)
                 xg = tf.einsum('btlu,tluv->bv', X, wx_g)
+                if self.params.get('bias'):
+                    xf += tf.squeeze(self.get_weight('ker_bias_xf_%s'), [1, 2])
+                    xg += tf.squeeze(self.get_weight('ker_bias_xg_%s'), [1, 2])
 
             if Z is not None:
                 zf = linear(Z, c_out, 'zf_%s' % self.name, self.scope)
@@ -150,13 +158,15 @@ class CausalConv1D(object):
 
             XX = tf.tanh(xf) * tf.sigmoid(xg)
 
-        elif self.params['nonlin'] == 'relu':
+        elif isinstance(self.params['nonlin'], type(lambda: None)):
+            nonlin = self.params['nonlin']
             if conv:
                 XX = self._do_conv(X, 'x_%s' % self.name)
             else:
                 wx = self.get_weight('kernel_x_%s')
                 XX = tf.einsum('btlu,tluv->bv', X, wx)
-            XX = tf.nn.relu(XX)
+            XX = nonlin(XX)
+
         else:
             raise ValueError(self.params['nonlin'])
 
@@ -204,19 +214,19 @@ class CausalConv1D(object):
             weights = _get_existing_vars([
                 ('kernel_xf_%s' % self.name, self.scope),
                 ('kernel_xg_%s' % self.name, self.scope),
-                ('kernel_xr_%s' % self.name, self.scope),
-                ('kernel_xs_%s' % self.name, self.scope),
-            ])
-
-        elif self.params['nonlin'] == 'relu':
-            weights = _get_existing_vars([
-                ('kernel_x_%s' % self.name, self.scope),
+                ('ker_bias_xf_%s' % self.name, self.scope),
+                ('ker_bias_xg_%s' % self.name, self.scope),
                 ('kernel_xr_%s' % self.name, self.scope),
                 ('kernel_xs_%s' % self.name, self.scope),
             ])
 
         else:
-            raise ValueError(self.params['nonlin'])
+            weights = _get_existing_vars([
+                ('kernel_x_%s' % self.name, self.scope),
+                ('ker_bias_x_%s' % self.name, self.scope),
+                ('kernel_xr_%s' % self.name, self.scope),
+                ('kernel_xs_%s' % self.name, self.scope),
+            ])
 
         assert len(weights) > 0, \
             "Weights have not been created yet"
