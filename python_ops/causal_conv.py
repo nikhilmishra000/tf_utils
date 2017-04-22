@@ -51,7 +51,7 @@ class CausalConv1D(object):
         params['pad'] = 'VALID'
         ker_shape = params['kernel']
         assert len(ker_shape) == 3 and ker_shape[1] == 1
-        self.params, self.scope = params, scope
+        self.params, self.scope = params, tf.get_variable_scope().name + '/' + scope
         self.name = name
 
     @cached_property

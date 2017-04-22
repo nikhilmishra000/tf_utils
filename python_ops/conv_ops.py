@@ -177,7 +177,7 @@ def conv(X, param, name, scope_name='conv'):
         bias = scoped_variable(
             'ker_bias_%s' % name, scope_name,
             shape=bias_shape,
-            initializer=tf.zeros_initializer,
+            initializer=tf.zeros_initializer(tf.float32),
         )
         conv += bias
     return conv

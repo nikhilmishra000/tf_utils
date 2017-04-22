@@ -16,38 +16,24 @@ def make_session(frac=None):
     ))
 
 
-def make_placeholders(variables, dtype='tf.float32'):
+def make_placeholders(variables):
     """
-    Input: a dict{name: shape} or {name: (shape, dtype_str)}
-           <shape> is a tuple of ints
-           <dtype_str> is a str like 'tf.float32', 'tf.int32', etc
+    Returns a dict{name: placeholder}.
 
-    If `dtype_str` is not given for a placeholder,
-    it will use the one passed into this function,
-    which is tf.float32 by default.
-
-    Usage:
-         variables = {
-           'X_pl': (4, 5),
-           'Y_pl': ((2, 3), 'tf.int32')
-         }
-         for var in make_placeholders(variables):
-             exec(var)
-
-         Z = X_pl + Y_pl
+    :param variables: dict{name: shape} or {name: (shape, dtype)}
+    where `shape` is a list/tuple of ints
+    and `dtype` is is Tensorflow dtype (defaults to `tf.float32`)
     """
-    commands = []
+    placeholders = {}
     for name, args in variables.items():
         if len(args) == 2 and isinstance(args[1], basestring):
             shape, dtype = args
         else:
-            shape, dtype = args, 'tf.float32'
-        commands.append(
-            "{0} = tf.placeholder({2}, {1}, name='{0}')".format(
-                name, shape, dtype
-            )
-        )
-    return commands
+            shape, dtype = args, tf.float32
+
+        placeholders[name] = tf.placeholder(dtype, shape, name=name)
+
+    return placeholders
 
 
 def scoped_variable(var_name, scope_name, **kwargs):

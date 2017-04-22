@@ -33,23 +33,14 @@ class NormalDist(struct):
             axis = [axis]
 
         if other is NormalDist.I:
-            kld = tf.reduce_sum(
-                0.5 * tf.square(self.mu) + 0.5 * tf.square(self.sig) -
-                self.logsig - 0.5
-            )
+            kld = 0.5 * tf.square(self.mu) + \
+                0.5 * tf.square(self.sig) - self.logsig - 0.5
 
         else:
             assert isinstance(other, NormalDist)
-            kld = tf.reduce_sum(
-                (self.logsig - other.logsig) + (
-                    tf.square(old.sig) - tf.square(self.sig)
-                    + tf.square(other.mu - sig.mu)
-                ) / (2 * tf.square(self.sig) + 1e-8)
-            )
+            kld = (self.logsig - other.logsig) + \
+                  (
+                tf.square(old.sig) + tf.square(other.mu - self.mu)
+            ) / (2 * tf.square(self.sig))
 
-        B = np.prod([
-            tf.shape(kld)[i] for i in range(kld.get_shape().ndims)
-            if i not in axis
-        ])
-
-        return kld / tf.to_float(B)
+        return tf.reduce_sum(kld, axis)
